@@ -9,7 +9,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "tsx watch src/server/index.ts",
+    "dev": "tsx watch --env-file=.env src/server/index.ts",
     "build": "npm run build:web && npm run build:server",
     "build:server": "esbuild src/server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/index.js",
     "build:web": "vite build",
@@ -19,20 +19,27 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.8",
+    "@twa-dev/sdk": "^8.0.2",
     "better-sqlite3": "^13.2.0",
     "cheerio": "^1.2.0",
     "grammy": "^1.46.0",
     "hono": "^4.13.19",
+    "preact": "^11.2.0",
     "sharp": "^0.35.5",
     "undici": "^8.12.4",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@preact/preset-vite": "^2.10.6",
+    "@testing-library/preact": "^3.2.6",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.6.6",
     "esbuild": "^0.28.2",
+    "jsdom": "^31.0.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
+    "vite": "^8.3.8",
     "vitest": "^5.1.0"
   }
 }

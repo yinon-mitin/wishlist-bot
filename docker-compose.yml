@@ -1,0 +1,14 @@
+services:
+  wishlist:
+    build: .
+    image: wishlist-bot:local
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      PORT: "8080"
+    volumes:
+      - ./data:/data
+    # Published on loopback only: Tailscale Funnel (on the host) is the public entry point.
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8080"
+    restart: unless-stopped
