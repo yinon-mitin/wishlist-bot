@@ -1,6 +1,7 @@
 import type { Db } from './db/db';
 import type { Config } from './config';
 import type { Rates, Viewer } from '../shared/types';
+import type { SafeFetch } from './services/ssrf';
 
 export type Clock = () => Date;
 
@@ -21,7 +22,8 @@ export interface AppDeps {
   clock: Clock;
   rates: RatesSource;
   notifier: Notifier;
-  fetchImpl?: typeof fetch;
+  /** SSRF-safe fetcher for user-supplied URLs; tests inject a fake. */
+  safeFetcher?: SafeFetch;
 }
 
 export class HttpError extends Error {

@@ -3,6 +3,7 @@ import { authMiddleware } from '../auth/middleware';
 import { HttpError, type AppDeps, type AppEnv } from '../deps';
 import { errorHandler } from './errors';
 import { itemsRoutes } from './routes/items';
+import { linkRoutes } from './routes/link';
 import { meRoutes } from './routes/me';
 import { ratesRoutes } from './routes/rates';
 import { staticHandler } from './static';
@@ -25,6 +26,7 @@ export function createApp(deps: AppDeps, opts: AppOptions = {}): Hono<AppEnv> {
   api.route('/', meRoutes(deps));
   api.route('/', ratesRoutes(deps));
   api.route('/', itemsRoutes(deps));
+  api.route('/', linkRoutes(deps));
   opts.extraRoutes?.(api, deps);
   api.all('*', () => {
     throw new HttpError(404, 'not_found');
