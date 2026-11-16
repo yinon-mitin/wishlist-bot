@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wishlist mini-app — дизайн</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --muted:#5b6570; --line:#e3e7ec; --accent:#0f766e; --soft:#f4f7f9; --warn:#b45309; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14181d; --fg:#e6e9ed; --muted:#9aa5b1; --line:#2a313a; --accent:#2dd4bf; --soft:#1b2128; --warn:#fbbf24; } }
+  body { background:var(--bg); color:var(--fg); font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif; margin:0; }
+  main { max-width:860px; margin:0 auto; padding:32px 16px 80px; }
+  h1 { font-size:1.9rem; margin:0 0 .25rem; }
+  h2 { font-size:1.3rem; margin:2.4rem 0 .6rem; padding-top:1rem; border-top:1px solid var(--line); }
+  h3 { font-size:1.05rem; margin:1.4rem 0 .3rem; }
+  p.sub { color:var(--muted); margin:0 0 1.5rem; }
+  table { border-collapse:collapse; width:100%; margin:.8rem 0; font-size:.94rem; }
+  th, td { border:1px solid var(--line); padding:.5rem .65rem; text-align:left; vertical-align:top; }
+  th { background:var(--soft); }
+  code { background:var(--soft); padding:.1em .35em; border-radius:4px; font-size:.9em; }
+  .note { background:var(--soft); border-left:4px solid var(--accent); padding:.6rem .9rem; margin:1rem 0; border-radius:0 6px 6px 0; }
+  .warn { border-left-color:var(--warn); }
+  .tag { display:inline-block; font-size:.78rem; padding:.05rem .5rem; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
+  .scroll { overflow-x:auto; }
+  ul { padding-left:1.3rem; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Wishlist mini-app — дизайн</h1>
+<p class="sub">Telegram mini-app с вишлистом на дни рождения · открытый проект · 2026-11-16 · статус: <strong>на утверждении</strong></p>
+
+<h2>1. Зачем и для кого</h2>
+<p>Владелец раздаёт друзьям и семье в Telegram-чатах ссылку на бота, когда его спрашивают «что тебе подарить». Гости открывают mini-app прямо в Telegram, без регистрации, смотрят желания, бронируют подарок (чтобы не купили одно и то же) и при желании скидываются на дорогой. Список живёт из года в год: каждый день рождения — отдельный «раунд».</p>
+<p>Проект открытый: любой может развернуть свой экземпляр одной командой <code>docker compose up</code>. Один экземпляр — один владелец.</p>
+
+<h2>2. Цели, не-цели, анти-цели</h2>
+<table>
+<tr><th>Цели</th><td>Нулевой порог для гостя (открыл ссылку — видит список). Сюрприз для именинника сохраняется. Лёгкое приложение, которое открывается на слабой связи. Простой самостоятельный деплой.</td></tr>
+<tr><th>Не-цели</th><td>Платежи (взносы «в складчину» — обещания, а не деньги). Мультитенантность и SaaS. Работа вне Telegram. Отслеживание цен, напоминания гостям от бота, автосброс брони (это v2).</td></tr>
+<tr><th>Анти-цели</th><td>Именинник случайно узнаёт, кто что дарит. Утечка личных данных (токен бота, ID, имена) в репозиторий. Приложение, которое тянет мегабайты JS или внешние картинки.</td></tr>
+</table>
+
+<h2>3. Ограничения и среда</h2>
+<ul>
+  <li><strong>Хостинг:</strong> Mac mini владельца (Израиль), Docker (linux/arm64), SQLite на смонтированном volume. Белого IP нет.</li>
+  <li><strong>Публичный вход:</strong> Tailscale Funnel (решение владельца). Funnel работает на хосте и проксирует на опубликованный порт контейнера. Гостям Tailscale не нужен. Гости из РФ единичные и используют VPN. Если позже понадобится, фронтом можно поставить VPS, дизайн этому не мешает.</li>
+  <li><strong>Бот:</strong> long polling, Funnel нужен только для mini-app.</li>
+  <li><strong>Процесс разработки (правила владельца):</strong> RED-GREEN (сначала падающий тест), запись в <code>CHANGELOG</code> в каждом изменении, документы для GitHub (README, SECURITY, CONTRIBUTING) в Markdown как у Iris, диаграммы в SVG.</li>
+  <li>Публичный репозиторий не создаётся и ничего не пушится без отдельного разрешения владельца. В коммитах только <code>.env.example</code>.</li>
+</ul>
+
+<h2>4. Подходы</h2>
+<table>
+<tr><th>Вариант</th><th>Плюсы</th><th>Минусы</th></tr>
+<tr><td><strong>A. TypeScript целиком</strong> (Hono + grammY + SQLite, Preact + Vite) <span class="tag">выбран</span></td><td>Один язык, один контейнер, общие типы между сервером и клиентом, совпадает со стеком <code>family-studio</code>.</td><td>Нативный <code>sharp</code> и SQLite-драйвер собираются под arm64, нужно проверить образ.</td></tr>
+<tr><td>B. Python (FastAPI + aiogram) + отдельный фронтенд</td><td>Как Iris, богатая экосистема для парсинга.</td><td>Два стека и два набора зависимостей ради той же функциональности.</td></tr>
+<tr><td>C. Только бот с инлайн-кнопками</td><td>Самое простое.</td><td>Не mini-app: нет картинок, главной страницы и нормальной админки. Не соответствует задаче.</td></tr>
+</table>
+<p>Выбран A: владелец отдал технические решения мне, меньше движущихся частей.</p>
+
+<h2>5. Архитектура</h2>
+<div class="scroll"><pre><code>Telegram-клиент гостя
+   │  открывает https://&lt;mini&gt;.&lt;tailnet&gt;.ts.net  (Funnel, 443)
+   ▼
+Tailscale Funnel ──► host:PORT ──► контейнер
+                                    ├─ Hono: статика SPA + REST API (/api)
+                                    ├─ grammY: бот (long polling → Telegram)
+                                    ├─ Планировщик: курсы валют, ночной бэкап
+                                    └─ SQLite + /data/images  (volume)</code></pre></div>
+<ul>
+  <li><strong>Авторизация:</strong> клиент шлёт <code>initData</code> от Telegram, сервер проверяет подпись HMAC токеном бота и срок давности. Владелец определяется по <code>OWNER_ID</code>. Роль проверяется на сервере, а не скрытием кнопок.</li>
+  <li><strong>Конфигурация (<code>.env</code>):</strong> <code>BOT_TOKEN</code>, <code>OWNER_ID</code>, <code>PUBLIC_URL</code>, <code>BIRTHDAY</code> (MM-DD), <code>CURRENCIES</code> (по умолчанию RUB,ILS,USD,EUR), <code>DEFAULT_CURRENCY</code>, <code>DATA_DIR</code>.</li>
+  <li><strong>Фронтенд:</strong> Preact, малый бандл, тема и цвета берутся из Telegram (светлая/тёмная), тактильный отклик на брони.</li>
+  <li><strong>i18n:</strong> ru и en, язык по <code>language_code</code> Telegram, переключатель вручную, каталог строк расширяем.</li>
+</ul>
+
+<h2>6. Модель данных (заложена сразу под все функции v1)</h2>
+<ul>
+  <li><code>rounds</code> — раунды (день рождения): год, дата, статус <code>open | revealed</code>. Один открытый раунд в каждый момент. <em>Нужна для «раскрытия» (1), но закладывается в M1, чтобы не мигрировать позже.</em></li>
+  <li><code>items</code> — подарок: название, описание, ссылка(и), цена и исходная валюта, картинка, <code>priority</code> (3 уровня), <code>note</code> (размер, цвет), <code>status</code> (<code>draft | published | received | archived</code>), <code>group_funding</code> (флаг складчины).</li>
+  <li><code>claims</code> — бронь/взнос: <code>item_id</code>, <code>round_id</code>, <code>user_id</code>, имя на момент брони, <code>kind</code> (<code>full | share</code>), <code>amount</code> (для складчины), время. Бронь «целиком» и взносы — одна таблица, чтобы функция (2) не ломала схему.</li>
+  <li><code>rates</code> — кэш курсов, <code>settings</code> — прочее. Миграции версионируются.</li>
+</ul>
+
+<h2>7. Правила видимости (главный инвариант)</h2>
+<div class="note"><strong>Для владельца любой ответ API не содержит данных о бронях</strong> (ни имён, ни статуса «забронировано», ни прогресса складчины) до раскрытия. Это проверяется тестами на уровне API. Подарок выглядит одинаково, брони он или нет.</div>
+<ul>
+  <li><strong>Гости:</strong> видят опубликованные подарки, статус брони и <em>имена</em> забронировавших (чтобы договориться о совместном подарке). Бронь снимает только её автор.</li>
+  <li><strong>Черновики:</strong> видит только владелец.</li>
+  <li><strong>Раскрытие:</strong> владелец жмёт «Подвести итоги» в день рождения или после. Это переводит раунд в <code>revealed</code>, показывает кто что подарил, владелец отмечает «получено». Полученные уходят в архив, невыбранные и «забронировано, но не вручено» возвращаются в список со сброшенной бронью. Открывается новый раунд.</li>
+  <li><div class="note warn">Скрытие брони — гарантия интерфейса и API, а не криптографии. Владелец с доступом к серверу и файлу БД теоретически может её прочитать. Цель — защитить от случайных спойлеров, а не от самого владельца. Это записывается в <code>SECURITY.md</code>. Бэкап (7) содержит брони по той же причине.</div></li>
+</ul>
+
+<h2>8. Функции v1 по сложности</h2>
+<div class="scroll"><table>
+<tr><th>Этап</th><th>Функция</th><th>Сложность</th><th>Суть</th></tr>
+<tr><td>M0</td><td>Фундамент</td><td>M</td><td>Репозиторий, Docker/Compose, CI (<code>validate</code>), проверка <code>initData</code>, миграции, i18n, тема, <code>Makefile</code>.</td></tr>
+<tr><td>M1</td><td>Ядро вишлиста</td><td><strong>L</strong></td><td>CRUD подарков (админка), главная, список, карточка, загрузка картинок (WebP, ресайз), подтягивание по ссылке (og-теги, защита от SSRF, только для владельца), цены и курсы (источник с RUB и ILS, кэш, выбор валюты гостем), атомарная бронь, инвариант видимости, раунды в схеме.</td></tr>
+<tr><td>M2</td><td>(4) Обратный отсчёт до дня рождения</td><td>S</td><td>Блок на главной от <code>BIRTHDAY</code>.</td></tr>
+<tr><td>M2</td><td>(3) Приоритеты и заметки</td><td>S</td><td>3 уровня приоритета, поле «размер, цвет», сортировка и бейдж.</td></tr>
+<tr><td>M2</td><td>(6) Ссылка на подарок в чат</td><td>S</td><td>Deep link <code>?startapp=item_&lt;id&gt;</code>, кнопка «Поделиться», открытие сразу карточки.</td></tr>
+<tr><td>M2</td><td>(10) Скрытые черновики</td><td>S</td><td>Статус <code>draft</code>, публикация одним действием, гости не видят.</td></tr>
+<tr><td>M3</td><td>(7) Ночной бэкап</td><td>M</td><td>Консистентный снапшот SQLite (<code>VACUUM INTO</code>), хранение последних N, отправка владельцу документом в Telegram, команда <code>/backup</code>.</td></tr>
+<tr><td>M3</td><td>(1) Раскрытие после дня рождения</td><td>M</td><td>Закрытие раунда, экран итогов, «получено», сброс брони, новый раунд, благодарность дарителям.</td></tr>
+<tr><td>M4</td><td>(2) Скинуться на подарок</td><td><strong>L</strong></td><td>Подарок помечается «складчина» владельцем. Гости вносят суммы в валюте подарка, нельзя превысить остаток, прогресс-бар, имена вкладчиков видны гостям, владельцу скрыты. Гонки решаются транзакциями. Взаимодействие с раскрытием: взносы тоже сбрасываются, если подарок не вручён.</td></tr>
+<tr><td>M5</td><td>Релиз</td><td>M</td><td>README в стиле Iris (баннер, бейджи, Features, Quick start), <code>docs/INSTALL.md</code> (BotFather, Funnel на mini, Docker), <code>SECURITY</code>, <code>CONTRIBUTING</code>, <code>CHANGELOG</code>, лицензия Apache-2.0.</td></tr>
+</table></div>
+<p>Порядок по сложности: сначала всё, что даёт работающий продукт (M0–M1), затем быстрые победы (M2), затем средние (M3) и самое сложное (M4). Схема данных готова под M3 и M4 с самого начала, поэтому поздние этапы не ломают ранние.</p>
+
+<h2>9. Тестирование</h2>
+<ul>
+  <li>RED-GREEN: тест, падающий по ожидаемой причине, затем минимальный код.</li>
+  <li>Юнит и интеграционные тесты API на Vitest с временной SQLite. Фиктивные <code>initData</code> подписываются тестовым токеном.</li>
+  <li>Обязательные наборы: проверка подписи и срока <code>initData</code>; инвариант «владелец не видит брони» (по всем ответам API); гонки при брони и взносах; SSRF (приватные адреса, редиректы, схемы); конвертация валют и округление.</li>
+  <li>Компоненты и e2e (Playwright) для ключевых сценариев гостя и владельца.</li>
+</ul>
+
+<h2>10. Что оставлено исполнителю</h2>
+<ul>
+  <li>Выбор провайдера курсов (должен знать RUB и ILS; ЕЦБ рубль не публикует), слой доступа к БД (Drizzle или чистый SQL), точные размеры и качество WebP.</li>
+  <li>Визуальный стиль mini-app, баннер и иконка. Нужны макеты. Решаем отдельно перед M1.</li>
+  <li>Название проекта: рабочее <code>wishlist-bot</code>, переименование до публикации.</li>
+</ul>
+
+<h2>11. Решения, принятые мной (проверь при чтении)</h2>
+<ul>
+  <li>Раскрытие запускает сам владелец кнопкой, и только в день рождения или позже (а не автоматически).</li>
+  <li>Складчину включает владелец для конкретного подарка. Сумма вносится в валюте подарка, обещания без платежей.</li>
+  <li>Гости видят имена забронировавших, владелец не видит ничего.</li>
+  <li>Публичный список без белого списка: доступ у всех, у кого есть ссылка.</li>
+  <li>Только владелец вызывает загрузку по ссылке (так SSRF доступен только аутентифицированному пользователю).</li>
+  <li>Лицензия Apache-2.0, как у Iris.</li>
+  <li>Спецификации и планы лежат в <code>docs/superpowers/</code> на русском; перед публикацией репозитория решим, оставлять их или убрать.</li>
+</ul>
+
+</main>
+</body>
+</html>
