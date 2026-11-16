@@ -1,0 +1,79 @@
+import type { en } from './en';
+
+type Shape = { [K in keyof typeof en]: (typeof en)[K] extends readonly string[] ? readonly string[] : string };
+
+/** Russian catalog. Plural lists are [one, few, many]. Keys and {placeholders} must match en.ts. */
+export const ru: Shape = {
+  'app.title': 'Вишлист',
+  'common.back': 'Назад',
+  'common.close': 'Закрыть',
+  'common.cancel': 'Отмена',
+  'common.save': 'Сохранить',
+  'common.delete': 'Удалить',
+  'common.loading': 'Загрузка…',
+  'common.retry': 'Повторить',
+  'common.share': 'Поделиться',
+
+  'days': ['{n} день', '{n} дня', '{n} дней'],
+  'home.countdown': 'до дня рождения, {date}',
+  'home.today': 'Сегодня тот самый день!',
+  'home.must': 'Очень хочу',
+  'home.all': 'Весь список · {n}',
+  'home.empty': 'Здесь пока нет подарков. Загляни позже.',
+
+  'list.title': 'Подарки',
+  'list.all': 'Все',
+  'list.free': 'Свободные',
+  'list.empty': 'Здесь пусто.',
+
+  'item.title': 'Подарок',
+  'item.reserve': 'Забронировать',
+  'item.release': 'Снять бронь',
+  'item.openStore': 'Открыть в магазине',
+  'item.approx': '≈ {amount} по курсу на сегодня',
+  'item.noteLabel': 'Заметка',
+  'item.status.free': 'Свободно',
+  'item.status.mine': 'Ваш',
+  'item.status.taken': 'Забронировано',
+  'item.reserved.by': 'Забронировал(а) {name}',
+  'item.reserved.ok': 'Забронировано. Спасибо!',
+  'item.released.ok': 'Бронь снята',
+  'item.error.already_claimed': 'Этот подарок только что забронировали.',
+  'item.error.network': 'Нет соединения. Попробуйте ещё раз.',
+  'item.error.generic': 'Что-то пошло не так. Попробуйте ещё раз.',
+
+  'fund.title': 'Скинуться вместе',
+  'fund.raised': 'Собрано {raised} из {total}',
+  'fund.contribute': 'Скинуться',
+  'fund.withdraw': 'Забрать свою долю',
+  'fund.amount': 'Ваша сумма',
+  'fund.remaining': 'Осталось собрать: {amount}',
+  'fund.done': 'Сумма собрана',
+
+  'priority.must': 'Очень хочу',
+  'priority.want': 'Хочу',
+  'priority.nice': 'Было бы приятно',
+
+  'owner.surprise': 'Брони скрыты до раскрытия, чтобы сюрприз остался сюрпризом.',
+  'owner.add': 'Добавить подарок',
+  'owner.edit': 'Изменить',
+  'owner.drafts': 'Черновики',
+  'owner.publish': 'Опубликовать',
+  'owner.reveal': 'Раскрытие',
+  'owner.archive': 'Получено',
+
+  'form.title': 'Название',
+  'form.description': 'Описание',
+  'form.url': 'Ссылка',
+  'form.fetch': 'Подтянуть по ссылке',
+  'form.price': 'Цена',
+  'form.currency': 'Валюта',
+  'form.priority': 'Приоритет',
+  'form.note': 'Заметка',
+  'form.image': 'Фото',
+  'form.groupFunding': 'Разрешить скидываться',
+
+  'reveal.title': 'Раскрытие',
+  'reveal.thanks': 'Спасибо!',
+  'reveal.empty': 'Пока никто ничего не забронировал.',
+};

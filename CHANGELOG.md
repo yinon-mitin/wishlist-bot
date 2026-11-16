@@ -27,3 +27,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Round close: owner-only reveal of who reserved what (only on or after the birthday), mark received gifts, free the rest, open next year's round, thank the givers in their language.
 - Group gift funding: owner enables per gift, guests contribute amounts in the gift's currency (never above the price, atomic), withdraw, see progress and contributors; the owner stays blind; reveal and thanks cover contributors.
 - Visual direction A (native Telegram): theme-driven design tokens and the decision record.
+- Web foundation: Telegram SDK wrapper, API client, hash router with start_param deep links, en/ru i18n with plural forms and key-parity tests, gzip bundle budget (90 KB) enforced by `build:web`.
