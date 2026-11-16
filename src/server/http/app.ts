@@ -7,6 +7,7 @@ import { itemsRoutes } from './routes/items';
 import { linkRoutes } from './routes/link';
 import { meRoutes } from './routes/me';
 import { ratesRoutes } from './routes/rates';
+import { roundsRoutes } from './routes/rounds';
 import { staticHandler } from './static';
 
 export interface AppOptions {
@@ -29,6 +30,7 @@ export function createApp(deps: AppDeps, opts: AppOptions = {}): Hono<AppEnv> {
   api.route('/', itemsRoutes(deps));
   api.route('/', imageRoutes(deps));
   api.route('/', linkRoutes(deps));
+  api.route('/', roundsRoutes(deps));
   opts.extraRoutes?.(api, deps);
   api.all('*', () => {
     throw new HttpError(404, 'not_found');

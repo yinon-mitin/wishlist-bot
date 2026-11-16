@@ -74,7 +74,8 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
 
   r.get('/items', (c) => {
     const viewer = c.get('viewer');
-    const statuses = viewer.isOwner ? "('draft', 'published')" : "('published')";
+    const archive = viewer.isOwner && c.req.query('status') === 'received';
+    const statuses = archive ? "('received')" : viewer.isOwner ? "('draft', 'published')" : "('published')";
     const rows = db.prepare(`SELECT * FROM items WHERE status IN ${statuses} ORDER BY ${ITEM_ORDER}`).all() as ItemRow[];
     const byItem = viewer.isOwner ? new Map<number, ClaimRow[]>() : claimsByItem(db, getOpenRound(db).id);
     return c.json(rows.map((row) => toItemDto(row, byItem.get(row.id) ?? [], viewer, config)));

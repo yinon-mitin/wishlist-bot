@@ -9,4 +9,10 @@ export const messages = {
       ? `Подарок «${t}» убран из вишлиста, ваша бронь снята.`
       : `The gift “${t}” was removed from the wishlist, so your reservation was released.`;
   },
+  thanks(lang: Lang, titles: string[]): string {
+    const list = titles.map((t) => (lang === 'ru' ? `«${escapeHtml(t)}»` : `“${escapeHtml(t)}”`)).join(', ');
+    return lang === 'ru'
+      ? `Спасибо за подарок! 🎁 Получено: ${list}. Это было очень приятно.`
+      : `Thank you for the gift! 🎁 Received: ${list}. It meant a lot.`;
+  },
 };

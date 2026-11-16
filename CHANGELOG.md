@@ -24,3 +24,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Hidden drafts (create as draft, publish with one call; guests get a 404 identical to a missing item) and a scheduler for periodic tasks, used to refresh currency rates every 12 hours.
 - Deep links to a single gift (t.me startapp=item_N, both link forms) and share-URL helpers shared by server and client.
 - Nightly backup: consistent SQLite snapshot sent to the owner in Telegram, old copies pruned (BACKUP_KEEP), owner-only /backup command (silent for others).
+- Round close: owner-only reveal of who reserved what (only on or after the birthday), mark received gifts, free the rest, open next year's round, thank the givers in their language.
