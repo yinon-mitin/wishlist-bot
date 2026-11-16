@@ -100,7 +100,7 @@ export function ItemForm({ id }: { id?: number }) {
 
   function validate(): { priceMinor: number | null; currency: string | null } | string {
     if (!f.title.trim()) return t('form.error.title');
-    if (f.price.trim() === '') return { priceMinor: null, currency: null };
+    if (f.price.trim() === '') return f.groupFunding ? t('form.error.groupPrice') : { priceMinor: null, currency: null };
     const minor = toMinor(f.price);
     if (minor == null || minor <= 0) return t('form.error.price');
     if (!f.currency) return t('form.error.currency');

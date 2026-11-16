@@ -10,6 +10,7 @@ export function OwnerBar() {
     <nav class="ownerbar">
       <p class="muted">{t('owner.surprise')}</p>
       <a class="btn" href={href.adminNew()}>{t('owner.add')}</a>
+      <a class="btn alt" href={href.adminReveal()}>{t('owner.reveal')}</a>
     </nav>
   );
 }

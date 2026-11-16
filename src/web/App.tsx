@@ -9,6 +9,7 @@ import { Home } from './pages/Home';
 import { Item } from './pages/Item';
 import { List } from './pages/List';
 import { href, navigate, parseRoute, type Route } from './router';
+import { Reveal } from './pages/admin/Reveal';
 import { ItemForm } from './pages/admin/ItemForm';
 import { AppProvider, useApp, type AppConfig } from './state';
 import { prefs } from './tg';
@@ -36,6 +37,8 @@ export function Routes() {
   }, [adminOnly, viewer.isOwner]);
   if (adminOnly && !viewer.isOwner) return <Home />;
   switch (route.name) {
+    case 'admin-reveal':
+      return <Reveal />;
     case 'admin-new':
       return <ItemForm />;
     case 'admin-edit':

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'preact/hooks';
 import type { ItemDto } from '../../shared/types';
 import { api } from '../api';
 import { ClaimButton } from '../components/ClaimButton';
+import { ContributeForm } from '../components/ContributeForm';
+import { FundingBar } from '../components/FundingBar';
 import { ErrorState, Loading, Screen } from '../components/Chrome';
 import { CurrencyPicker } from '../components/CurrencyPicker';
 import { Thumb } from '../components/ItemCard';
@@ -64,6 +66,12 @@ export function Item({ id }: { id: number }) {
             </div>
             {item.url && isWebUrl(item.url) && <a class="link" href={item.url} target="_blank" rel="noopener noreferrer">{t('item.openStore')}</a>}
           </div>
+          {item.groupFunding && !viewer.isOwner && (
+            <div class="pad">
+              <FundingBar item={item} />
+              <ContributeForm item={item} onItem={q.set} onStale={q.reload} />
+            </div>
+          )}
           <ClaimButton item={item} onItem={q.set} onStale={q.reload} />
           {viewer.isOwner && item.status === 'draft' && (
             <div class="actions"><button type="button" class="main" disabled={publishing} onClick={() => void publish()}>{t('owner.publish')}</button></div>
