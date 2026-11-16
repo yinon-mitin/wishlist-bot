@@ -9,6 +9,7 @@ import type { AppDeps } from './deps';
 import { ensureOpenRound } from './domain/rounds';
 import { createApp } from './http/app';
 import { ErApiProvider, RatesService } from './services/rates';
+import { Scheduler } from './services/scheduler';
 
 async function main() {
   const config = loadConfig(process.env);
@@ -19,7 +20,9 @@ async function main() {
   const notifier = new GrammyNotifier(bot.api);
   const clock = () => new Date();
   const rates = new RatesService(db, new ErApiProvider(), clock, [...new Set([...config.currencies, 'USD'])]);
-  void rates.refresh(); // scheduled refresh arrives with the scheduler
+  const scheduler = new Scheduler(clock, config.timezone);
+  void rates.refresh();
+  scheduler.every(12 * 3600_000, () => rates.refresh());
   const deps: AppDeps = { config, db, clock, rates, notifier };
   const app = createApp(deps);
 
@@ -31,6 +34,7 @@ async function main() {
   });
 
   const stop = () => {
+    scheduler.stop();
     void bot.stop();
     server.close(() => {
       db.close();

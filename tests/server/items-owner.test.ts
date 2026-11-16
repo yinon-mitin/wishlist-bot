@@ -47,7 +47,7 @@ describe('owner item management', () => {
     ['javascript: url', { title: 'x', url: 'javascript:alert(1)' }],
     ['non-integer price', { title: 'x', priceMinor: 10.5, currency: 'USD' }],
     ['zero price', { title: 'x', priceMinor: 0, currency: 'USD' }],
-    ['unknown field', { title: 'x', status: 'draft' }],
+    ['unknown field', { title: 'x', color: 'red' }],
     ['too long title', { title: 'x'.repeat(201) }],
   ])('rejects %s with 400', async (_n, body) => {
     const { create } = setup();

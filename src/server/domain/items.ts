@@ -1,5 +1,5 @@
 import type { Db } from '../db/db';
-import type { Priority } from '../../shared/types';
+import type { ItemStatus, Priority } from '../../shared/types';
 import type { ItemRow } from './types';
 
 export interface ItemInput {
@@ -11,6 +11,8 @@ export interface ItemInput {
   imageFile?: string | null;
   priority?: Priority;
   note?: string;
+  /** Only at creation; use publishItem() to go live. */
+  status?: Extract<ItemStatus, 'draft' | 'published'>;
 }
 
 const COLUMNS: Record<keyof ItemInput, string> = {
@@ -22,6 +24,7 @@ const COLUMNS: Record<keyof ItemInput, string> = {
   imageFile: 'image_file',
   priority: 'priority',
   note: 'note',
+  status: 'status',
 };
 
 export function getItem(db: Db, id: number): ItemRow | null {
@@ -31,8 +34,8 @@ export function getItem(db: Db, id: number): ItemRow | null {
 export function createItem(db: Db, input: ItemInput, now: Date): ItemRow {
   const ts = now.toISOString();
   const id = db
-    .prepare('INSERT INTO items(title, description, url, price_minor, currency, image_file, priority, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(input.title, input.description ?? '', input.url ?? null, input.priceMinor ?? null, input.currency ?? null, input.imageFile ?? null, input.priority ?? 'want', input.note ?? '', ts, ts).lastInsertRowid;
+    .prepare('INSERT INTO items(title, description, url, price_minor, currency, image_file, priority, note, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(input.title, input.description ?? '', input.url ?? null, input.priceMinor ?? null, input.currency ?? null, input.imageFile ?? null, input.priority ?? 'want', input.note ?? '', input.status ?? 'published', ts, ts).lastInsertRowid;
   return getItem(db, Number(id))!;
 }
 
@@ -60,3 +63,13 @@ export function deleteItem(db: Db, id: number): boolean {
 
 /** Display order: priority first (must, want, nice), newest first inside a group. Independent of any claim data. */
 export const ITEM_ORDER = "CASE priority WHEN 'must' THEN 0 WHEN 'want' THEN 1 ELSE 2 END, created_at DESC, id DESC";
+
+/** Makes a draft visible to guests. Idempotent. Returns null when the item does not exist. */
+export function publishItem(db: Db, id: number, now: Date): ItemRow | null {
+  const existing = getItem(db, id);
+  if (!existing) return null;
+  if (existing.status === 'published') return existing;
+  if (existing.status !== 'draft') return existing;
+  db.prepare("UPDATE items SET status = 'published', updated_at = ? WHERE id = ?").run(now.toISOString(), id);
+  return getItem(db, id);
+}

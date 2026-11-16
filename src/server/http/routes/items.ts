@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { claimFull, claimsByItem, releaseClaim } from '../../domain/claims';
-import { ITEM_ORDER, createItem, deleteItem, getItem, updateItem, type ItemInput } from '../../domain/items';
+import { ITEM_ORDER, createItem, deleteItem, getItem, publishItem, updateItem, type ItemInput } from '../../domain/items';
 import { toItemDto } from '../../domain/views';
 import type { ClaimRow, ItemRow } from '../../domain/types';
 import { getOpenRound } from '../../domain/rounds';
@@ -37,7 +37,8 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
     priority: z.enum(['must', 'want', 'nice']),
     note: z.string().max(500),
   };
-  const createSchema = z.object({ ...fields, description: fields.description.optional(), url: fields.url.optional(), priceMinor: fields.priceMinor.optional(), currency: fields.currency.optional(), priority: fields.priority.optional(), note: fields.note.optional() }).strict();
+  const status = z.enum(['draft', 'published']);
+  const createSchema = z.object({ ...fields, description: fields.description.optional(), url: fields.url.optional(), priceMinor: fields.priceMinor.optional(), currency: fields.currency.optional(), priority: fields.priority.optional(), note: fields.note.optional(), status: status.optional() }).strict();
   const patchSchema = z.object(fields).partial().strict();
 
   async function parseBody<T>(c: { req: { json(): Promise<unknown> } }, schema: z.ZodType<T>): Promise<T> {
@@ -107,6 +108,12 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
     priceAndCurrencyTogether(input.priceMinor, input.currency);
     const item = createItem(db, input as ItemInput, clock());
     return c.json(toItemDto(item, [], c.get('viewer'), config), 201);
+  });
+
+  r.post('/items/:id/publish', requireOwner, (c) => {
+    const item = publishItem(db, parseId(c.req.param('id')), clock());
+    if (!item) throw new HttpError(404, 'not_found');
+    return c.json(toItemDto(item, [], c.get('viewer'), config));
   });
 
   r.patch('/items/:id', requireOwner, async (c) => {

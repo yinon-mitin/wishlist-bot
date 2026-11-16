@@ -21,3 +21,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Telegram bot: localized /start and /help with a button that opens the mini-app, menu button setup, and a notifier that never throws on blocked users.
 - GET /api/home with the days left until the open round's birthday (time-zone aware, never negative).
 - Gift priority (must, want, nice) and free-form notes; lists sort by priority then newest.
+- Hidden drafts (create as draft, publish with one call; guests get a 404 identical to a missing item) and a scheduler for periodic tasks, used to refresh currency rates every 12 hours.
