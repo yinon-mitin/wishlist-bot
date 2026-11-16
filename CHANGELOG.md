@@ -11,3 +11,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Telegram initData verification (HMAC, freshness) and auth middleware that marks the owner by OWNER_ID.
 - HTTP app skeleton (health check, authenticated /api, SPA static serving), Docker image, Compose file (loopback-published port, data volume), Makefile and CI workflow.
 - Money helpers: tolerant price parsing, minor-unit conversion through USD with half-up rounding, localized formatting.
+- Birthday rounds: time-zone-aware next-birthday and day-count helpers (02-29 handled), one open round at all times.

@@ -4,6 +4,7 @@ import { loadConfig } from './config';
 import { openDb } from './db/db';
 import { migrate } from './db/migrate';
 import type { AppDeps, Notifier, RatesSource } from './deps';
+import { ensureOpenRound } from './domain/rounds';
 import { createApp } from './http/app';
 
 // Placeholders until the real services land (rates, bot notifier).
@@ -14,6 +15,7 @@ async function main() {
   const config = loadConfig(process.env);
   const db = openDb(join(config.dataDir, 'wishlist.sqlite'));
   const version = migrate(db);
+  ensureOpenRound(db, config, new Date());
   const deps: AppDeps = { config, db, clock: () => new Date(), rates: noRates, notifier: noopNotifier };
   const app = createApp(deps);
 

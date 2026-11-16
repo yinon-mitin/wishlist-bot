@@ -5,6 +5,7 @@ import { createApp, type AppOptions } from '../../src/server/http/app';
 import { loadConfig, type Config } from '../../src/server/config';
 import { openDb } from '../../src/server/db/db';
 import { migrate } from '../../src/server/db/migrate';
+import { ensureOpenRound } from '../../src/server/domain/rounds';
 import type { AppDeps, Notifier, RatesSource } from '../../src/server/deps';
 import type { Rates } from '../../src/shared/types';
 import { signInitData } from './initData';
@@ -83,6 +84,7 @@ export function createTestApp(overrides: { env?: Record<string, string>; app?: A
       clock.now = new Date(d);
     },
   };
+  ensureOpenRound(db, config, clock.now);
   const notifier = new FakeNotifier();
   const rates = new FakeRates();
   const deps: AppDeps = { config, db, clock: clock.fn, rates, notifier, ...overrides.deps };

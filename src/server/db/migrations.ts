@@ -64,4 +64,9 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 2,
+    name: 'open_round_unique',
+    sql: `CREATE UNIQUE INDEX rounds_one_open ON rounds(status) WHERE status = 'open';`,
+  },
 ];
