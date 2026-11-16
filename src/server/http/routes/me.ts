@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { getOpenRound, daysUntil } from '../../domain/rounds';
 import type { AppDeps, AppEnv } from '../../deps';
 
 export function meRoutes(deps: AppDeps): Hono<AppEnv> {
@@ -16,5 +17,9 @@ export function meRoutes(deps: AppDeps): Hono<AppEnv> {
       },
     }),
   );
+  r.get('/home', (c) => {
+    const round = getOpenRound(deps.db);
+    return c.json({ date: round.date, daysLeft: Math.max(0, daysUntil(round.date, deps.clock(), config.timezone)) });
+  });
   return r;
 }
