@@ -17,7 +17,12 @@ const TEXT: Record<Lang, { welcome: string; open: string; menu: string }> = {
 
 export const langOf = (code: string | undefined): Lang => (code === 'ru' ? 'ru' : 'en');
 
-export function createBot(config: Pick<Config, 'botToken' | 'publicUrl'>, botConfig?: BotConfig<Context>): Bot {
+export interface BotHooks {
+  /** Runs a backup; resolves true when the file reached the owner. */
+  backup?: () => Promise<boolean>;
+}
+
+export function createBot(config: Pick<Config, 'botToken' | 'publicUrl' | 'ownerId'>, botConfig?: BotConfig<Context>, hooks: BotHooks = {}): Bot {
   const bot = new Bot(config.botToken, botConfig);
 
   const welcome = async (ctx: Context) => {
@@ -25,6 +30,13 @@ export function createBot(config: Pick<Config, 'botToken' | 'publicUrl'>, botCon
     await ctx.reply(t.welcome, { reply_markup: new InlineKeyboard().webApp(t.open, config.publicUrl) });
   };
   bot.command(['start', 'help'], welcome);
+
+  // Owner-only and silent for everyone else, so the command's existence is not revealed.
+  bot.command('backup', async (ctx) => {
+    if (ctx.from?.id !== config.ownerId || !hooks.backup) return;
+    const ok = await hooks.backup();
+    if (!ok) await ctx.reply(langOf(ctx.from.language_code) === 'ru' ? 'Не удалось отправить бэкап, смотрите логи.' : 'The backup could not be sent, check the logs.');
+  });
 
   bot.catch((err) => console.error('[bot] handler error:', err.error instanceof Error ? err.error.message : err.error));
   return bot;
