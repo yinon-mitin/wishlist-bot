@@ -15,4 +15,10 @@ export const messages = {
       ? `Спасибо за подарок! 🎁 Получено: ${list}. Это было очень приятно.`
       : `Thank you for the gift! 🎁 Received: ${list}. It meant a lot.`;
   },
+  contributionReleased(lang: Lang, title: string): string {
+    const t = escapeHtml(title);
+    return lang === 'ru'
+      ? `Условия сбора на подарок «${t}» изменились, ваш взнос снят. Его можно внести заново.`
+      : `The group gift “${t}” was changed, so your contribution was released. You can contribute again.`;
+  },
 };

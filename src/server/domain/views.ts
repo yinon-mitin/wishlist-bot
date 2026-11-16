@@ -24,5 +24,9 @@ export function toItemDto(item: ItemRow, claims: ClaimRow[], viewer: Viewer, _co
   dto.claims = claims.map(
     (c): ClaimDto => ({ userId: c.user_id, name: c.user_name, kind: c.kind, amountMinor: c.amount_minor, mine: c.user_id === viewer.id }),
   );
+  if (dto.groupFunding) {
+    const raised = claims.filter((c) => c.kind === 'share').reduce((sum, c) => sum + (c.amount_minor ?? 0), 0);
+    dto.funding = { raisedMinor: raised, remainingMinor: Math.max(0, (item.price_minor ?? 0) - raised) };
+  }
   return dto;
 }

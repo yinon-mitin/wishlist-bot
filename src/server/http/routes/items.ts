@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { claimFull, claimsByItem, releaseClaim } from '../../domain/claims';
+import { claimFull, claimsByItem, contribute, raisedFor, releaseClaim, releaseShares, withdrawContribution } from '../../domain/claims';
 import { ITEM_ORDER, createItem, deleteItem, getItem, publishItem, updateItem, type ItemInput } from '../../domain/items';
 import { toItemDto } from '../../domain/views';
 import type { ClaimRow, ItemRow } from '../../domain/types';
@@ -36,9 +36,10 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
     currency: currency.nullable(),
     priority: z.enum(['must', 'want', 'nice']),
     note: z.string().max(500),
+    groupFunding: z.boolean(),
   };
   const status = z.enum(['draft', 'published']);
-  const createSchema = z.object({ ...fields, description: fields.description.optional(), url: fields.url.optional(), priceMinor: fields.priceMinor.optional(), currency: fields.currency.optional(), priority: fields.priority.optional(), note: fields.note.optional(), status: status.optional() }).strict();
+  const createSchema = z.object({ ...fields, description: fields.description.optional(), url: fields.url.optional(), priceMinor: fields.priceMinor.optional(), currency: fields.currency.optional(), priority: fields.priority.optional(), note: fields.note.optional(), status: status.optional(), groupFunding: fields.groupFunding.optional() }).strict();
   const patchSchema = z.object(fields).partial().strict();
 
   async function parseBody<T>(c: { req: { json(): Promise<unknown> } }, schema: z.ZodType<T>): Promise<T> {
@@ -104,9 +105,28 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
     return c.json(dtoFor(item, viewer));
   });
 
+  r.post('/items/:id/contribute', async (c) => {
+    const viewer = c.get('viewer');
+    const id = parseId(c.req.param('id'));
+    const body = z.object({ amountMinor: z.number().int().positive() }).strict().safeParse(await c.req.json().catch(() => null));
+    if (!body.success) throw new HttpError(viewer.isOwner ? 403 : 400, viewer.isOwner ? 'owner_cannot_claim' : 'invalid_amount');
+    contribute(db, id, viewer, body.data.amountMinor, clock());
+    return c.json(dtoFor(getItem(db, id)!, viewer));
+  });
+
+  r.delete('/items/:id/contribute', (c) => {
+    const viewer = c.get('viewer');
+    const id = parseId(c.req.param('id'));
+    withdrawContribution(db, id, viewer);
+    const item = getItem(db, id);
+    if (!visible(item, viewer.isOwner)) throw new HttpError(404, 'not_found');
+    return c.json(dtoFor(item, viewer));
+  });
+
   r.post('/items', requireOwner, async (c) => {
     const input = await parseBody(c, createSchema);
     priceAndCurrencyTogether(input.priceMinor, input.currency);
+    if (input.groupFunding && input.priceMinor == null) throw new HttpError(400, 'price_required');
     const item = createItem(db, input as ItemInput, clock());
     return c.json(toItemDto(item, [], c.get('viewer'), config), 201);
   });
@@ -126,7 +146,20 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
       'priceMinor' in patch ? patch.priceMinor : existing.price_minor,
       'currency' in patch ? patch.currency : existing.currency,
     );
+    const nextGroup = 'groupFunding' in patch ? patch.groupFunding : existing.group_funding === 1;
+    const nextPrice = 'priceMinor' in patch ? patch.priceMinor : existing.price_minor;
+    if (nextGroup && nextPrice == null) throw new HttpError(400, 'price_required');
     const item = updateItem(db, id, patch, clock())!;
+
+    // Contributions that no longer make sense (group funding off, new currency, price below what was raised) are
+    // released and their owners told; the owner's own response is identical either way.
+    const roundId = getOpenRound(db).id;
+    const raised = raisedFor(db, id, roundId);
+    if (raised > 0 && (item.group_funding !== 1 || item.currency !== existing.currency || raised > (item.price_minor ?? 0))) {
+      for (const share of releaseShares(db, id)) {
+        await deps.notifier.send(share.user_id, messages.contributionReleased(share.lang, item.title)).catch(() => false);
+      }
+    }
     return c.json(toItemDto(item, [], c.get('viewer'), config));
   });
 

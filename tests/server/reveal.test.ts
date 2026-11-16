@@ -169,3 +169,36 @@ describe('closing the round', () => {
     expect((await hist.json()).items.map((e: any) => e.item.title).sort()).toEqual(['Lamp', 'Pen <b>']);
   });
 });
+
+describe('group-funded gifts at the reveal', () => {
+  async function funded() {
+    const t = createTestApp();
+    const mk = async (title: string) => (await (await t.call('/api/items', { as: owner, json: { title, priceMinor: 10000, currency: 'USD', groupFunding: true } })).json()) as { id: number };
+    const bike = await mk('Bike');
+    const tent = await mk('Tent');
+    const give = (id: number, as: ReturnType<typeof guest>, amountMinor: number) => t.call(`/api/items/${id}/contribute`, { as, json: { amountMinor } });
+    await give(bike.id, guest(1, 'Anna', 'ru'), 6000);
+    await give(bike.id, guest(2, 'Boris', 'en'), 4000);
+    await give(tent.id, guest(3, 'Clara', 'en'), 2500);
+    t.clock.set(BIRTHDAY);
+    return { t, bike, tent };
+  }
+
+  it('shows every contributor with their amount in the reveal', async () => {
+    const { t, bike } = await funded();
+    const body = await (await t.call('/api/rounds/current/reveal', { as: owner })).json();
+    const entry = body.items.find((e: any) => e.item.id === bike.id);
+    expect(entry.claims.map((c: any) => [c.name, c.kind, c.amountMinor])).toEqual([['Anna', 'share', 6000], ['Boris', 'share', 4000]]);
+  });
+
+  it('thanks every contributor of a received gift, and drops the shares of gifts not received', async () => {
+    const { t, bike, tent } = await funded();
+    const rid = (t.db.prepare("SELECT id FROM rounds WHERE status='open'").get() as { id: number }).id;
+    const res = await t.call(`/api/rounds/${rid}/close`, { as: owner, json: { receivedItemIds: [bike.id] } });
+    expect((await res.json()).thanked).toBe(2);
+    expect(t.notifier.sent.map((m) => m.userId).sort()).toEqual([2001, 2002]);
+    // the tent was not received: its contribution does not carry into the new round
+    const view = await (await t.call(`/api/items/${tent.id}`, { as: guest(9) })).json();
+    expect(view.funding).toEqual({ raisedMinor: 0, remainingMinor: 10000 });
+  });
+});

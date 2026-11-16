@@ -11,6 +11,7 @@ export interface ItemInput {
   imageFile?: string | null;
   priority?: Priority;
   note?: string;
+  groupFunding?: boolean;
   /** Only at creation; use publishItem() to go live. */
   status?: Extract<ItemStatus, 'draft' | 'published'>;
 }
@@ -25,6 +26,7 @@ const COLUMNS: Record<keyof ItemInput, string> = {
   priority: 'priority',
   note: 'note',
   status: 'status',
+  groupFunding: 'group_funding',
 };
 
 export function getItem(db: Db, id: number): ItemRow | null {
@@ -34,8 +36,8 @@ export function getItem(db: Db, id: number): ItemRow | null {
 export function createItem(db: Db, input: ItemInput, now: Date): ItemRow {
   const ts = now.toISOString();
   const id = db
-    .prepare('INSERT INTO items(title, description, url, price_minor, currency, image_file, priority, note, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(input.title, input.description ?? '', input.url ?? null, input.priceMinor ?? null, input.currency ?? null, input.imageFile ?? null, input.priority ?? 'want', input.note ?? '', input.status ?? 'published', ts, ts).lastInsertRowid;
+    .prepare('INSERT INTO items(title, description, url, price_minor, currency, image_file, priority, note, status, group_funding, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(input.title, input.description ?? '', input.url ?? null, input.priceMinor ?? null, input.currency ?? null, input.imageFile ?? null, input.priority ?? 'want', input.note ?? '', input.status ?? 'published', input.groupFunding ? 1 : 0, ts, ts).lastInsertRowid;
   return getItem(db, Number(id))!;
 }
 
@@ -48,7 +50,7 @@ export function updateItem(db: Db, id: number, patch: Partial<ItemInput>, now: D
   for (const key of Object.keys(COLUMNS) as (keyof ItemInput)[]) {
     if (key in patch && patch[key] !== undefined) {
       sets.push(`${COLUMNS[key]} = ?`);
-      values.push(patch[key]);
+      values.push(key === 'groupFunding' ? (patch[key] ? 1 : 0) : patch[key]);
     }
   }
   sets.push('updated_at = ?');
