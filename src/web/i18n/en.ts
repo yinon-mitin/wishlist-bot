@@ -36,6 +36,7 @@ export const en = {
   'item.released.ok': 'Reservation cancelled',
   'item.error.already_claimed': 'Someone has just reserved this gift.',
   'item.error.network': 'No connection. Try again.',
+  'item.error.not_found': 'This gift is no longer available.',
   'item.error.generic': 'Something went wrong. Try again.',
 
   'fund.title': 'Chip in together',

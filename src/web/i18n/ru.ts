@@ -40,6 +40,7 @@ export const ru: Shape = {
   'item.released.ok': 'Бронь снята',
   'item.error.already_claimed': 'Этот подарок только что забронировали.',
   'item.error.network': 'Нет соединения. Попробуйте ещё раз.',
+  'item.error.not_found': 'Этого подарка больше нет.',
   'item.error.generic': 'Что-то пошло не так. Попробуйте ещё раз.',
 
   'fund.title': 'Скинуться вместе',
