@@ -28,12 +28,13 @@ interface Form {
   priority: Priority;
   note: string;
   groupFunding: boolean;
+  draft: boolean;
 }
 
 const priceText = (minor: number) => (minor % 100 === 0 ? String(minor / 100) : (minor / 100).toFixed(2));
 const fromItem = (i: ItemDto): Form => ({
   url: i.url ?? '', title: i.title, description: i.description, price: i.priceMinor == null ? '' : priceText(i.priceMinor),
-  currency: i.currency ?? '', priority: i.priority, note: i.note, groupFunding: i.groupFunding,
+  currency: i.currency ?? '', priority: i.priority, note: i.note, groupFunding: i.groupFunding, draft: false,
 });
 
 function Field({ id, label, children }: { id: string; label: string; children: preact.ComponentChildren }) {
@@ -48,7 +49,7 @@ function Field({ id, label, children }: { id: string; label: string; children: p
 /** Create (no id) or edit (id) a gift. */
 export function ItemForm({ id }: { id?: number }) {
   const { config } = useApp();
-  const empty: Form = { url: '', title: '', description: '', price: '', currency: config.defaultCurrency, priority: 'want', note: '', groupFunding: false };
+  const empty: Form = { url: '', title: '', description: '', price: '', currency: config.defaultCurrency, priority: 'want', note: '', groupFunding: false, draft: false };
   const [f, setF] = useState<Form>(empty);
   const [savedId, setSavedId] = useState(id);
   const [error, setError] = useState<string | null>(null);
@@ -116,9 +117,10 @@ export function ItemForm({ id }: { id?: number }) {
         title: f.title.trim(), description: f.description, url: f.url.trim() || null, ...v,
         priority: f.priority, note: f.note, groupFunding: f.groupFunding,
       };
+      const createBody = f.draft ? { ...json, status: 'draft' as const } : json;
       const dto = savedId
         ? await api<ItemDto>(`/api/items/${savedId}`, { method: 'PATCH', json })
-        : await api<ItemDto>('/api/items', { method: 'POST', json });
+        : await api<ItemDto>('/api/items', { method: 'POST', json: createBody });
       setSavedId(dto.id);
       try {
         if (file) {
@@ -190,6 +192,12 @@ export function ItemForm({ id }: { id?: number }) {
           <input id="f-group" type="checkbox" checked={f.groupFunding} onChange={(e) => set('groupFunding', e.currentTarget.checked)} />
           <label for="f-group">{t('form.groupFunding')}</label>
         </div>
+        {!savedId && (
+          <div class="check">
+            <input id="f-draft" type="checkbox" checked={f.draft} onChange={(e) => set('draft', e.currentTarget.checked)} />
+            <label for="f-draft">{t('form.draft')}</label>
+          </div>
+        )}
         {error && <p class="msg" role="alert">{error}</p>}
         <div class="actions static">
           <button type="submit" class="main" disabled={busy}>{t('common.save')}</button>

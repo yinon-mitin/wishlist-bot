@@ -22,6 +22,7 @@ export function PriorityDot({ priority }: { priority: ItemDto['priority'] }) {
 function Status({ item }: { item: ItemDto }) {
   const { viewer } = useApp();
   const s = claimState(item, viewer);
+  if (item.status === 'draft') return <span class="st tag">{t('owner.draftTag')}</span>;
   if (s.kind === 'hidden') return null;
   if (item.groupFunding && s.kind === 'free' && item.funding && item.priceMinor) {
     return <span class="st free">{Math.min(100, Math.round((item.funding.raisedMinor / item.priceMinor) * 100))}%</span>;

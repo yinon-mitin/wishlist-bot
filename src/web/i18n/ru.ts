@@ -56,6 +56,7 @@ export const ru: Shape = {
   'priority.nice': 'Было бы приятно',
 
   'owner.surprise': 'Брони скрыты до раскрытия, чтобы сюрприз остался сюрпризом.',
+  'owner.draftTag': 'Черновик',
   'owner.add': 'Добавить подарок',
   'owner.edit': 'Изменить',
   'owner.drafts': 'Черновики',
@@ -86,6 +87,7 @@ export const ru: Shape = {
   'form.error.image': 'Подарок сохранён, но фото не загрузилось. Попробуйте ещё раз.',
   'form.deleteConfirm': 'Удалить подарок? Это нельзя отменить.',
   'form.imageFromLink': 'Фото по ссылке добавится при сохранении.',
+  'form.draft': 'Скрыть, пока не опубликую',
   'form.groupFunding': 'Разрешить скидываться',
 
   'reveal.title': 'Раскрытие',

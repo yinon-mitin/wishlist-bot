@@ -30,3 +30,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Web foundation: Telegram SDK wrapper, API client, hash router with start_param deep links, en/ru i18n with plural forms and key-parity tests, gzip bundle budget (90 KB) enforced by `build:web`.
 - Guest screens (native Telegram style): home with most-wanted gifts, list with an availability filter, gift page with price conversion, currency picker, atomic reserve/cancel with conflict handling.
 - Owner admin screens: gift form with link fetch (never overwrites typed fields without confirmation), photo upload, delete with confirmation; owner-only shortcuts; guests are redirected away from admin routes.
+- UI for countdown (plural-aware, 'Today is the day!'), priority badge and notes, hidden drafts with Publish, gift deep links and Telegram share, soft notice for missing gifts.

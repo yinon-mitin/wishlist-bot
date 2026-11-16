@@ -52,6 +52,7 @@ export const en = {
   'priority.nice': 'Nice to have',
 
   'owner.surprise': 'Reservations are hidden until the reveal, so the surprise stays.',
+  'owner.draftTag': 'Draft',
   'owner.add': 'Add a gift',
   'owner.edit': 'Edit',
   'owner.drafts': 'Drafts',
@@ -82,6 +83,7 @@ export const en = {
   'form.error.image': 'The gift is saved, but the photo did not upload. Try again.',
   'form.deleteConfirm': 'Delete this gift? This cannot be undone.',
   'form.imageFromLink': 'The photo from the link will be added when you save.',
+  'form.draft': 'Keep hidden until I publish',
   'form.groupFunding': 'Allow chipping in',
 
   'reveal.title': 'Reveal',

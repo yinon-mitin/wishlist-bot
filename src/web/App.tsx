@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { Rates, Viewer } from '../shared/types';
 import { api } from './api';
 import { ErrorState, Loading } from './components/Chrome';
+import { Notice } from './components/Notice';
 import { useAsync } from './hooks';
 import { setLang } from './i18n';
 import { Home } from './pages/Home';
@@ -66,6 +67,7 @@ export function App() {
   return (
     <AppProvider viewer={viewer} config={config} rates={rates} initialCurrency={initial}>
       <Routes />
+      <Notice />
     </AppProvider>
   );
 }

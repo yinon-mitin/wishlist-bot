@@ -42,6 +42,14 @@ export const prefs = {
   },
 };
 
+export const openTelegramLink = (url: string): void => {
+  try {
+    WebApp.openTelegramLink(url);
+  } catch {
+    window.open(url, '_blank', 'noopener');
+  }
+};
+
 /** Yes/no question: Telegram's native dialog when available, the browser's otherwise. */
 export const ask = (message: string): Promise<boolean> =>
   new Promise((resolve) => {

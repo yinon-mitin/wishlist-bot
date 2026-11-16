@@ -1,3 +1,5 @@
+import { parseStartParam } from '../shared/deeplink';
+
 export type Route =
   | { name: 'home' }
   | { name: 'list' }
@@ -30,8 +32,8 @@ export function parseRoute(hash: string): Route {
 
 /** Telegram `start_param` (`item_12`) → hash to open. */
 export function routeFromStartParam(p: string | null | undefined): string {
-  const m = /^item_(\d{1,10})$/.exec(p ?? '');
-  return m && Number(m[1]) > 0 ? `#/item/${Number(m[1])}` : '#/';
+  const parsed = parseStartParam(p);
+  return parsed ? `#/item/${parsed.itemId}` : '#/';
 }
 
 export const href = {

@@ -72,3 +72,17 @@ input:not([type=checkbox]):not([type=file]), textarea, select { width: 100%; fon
 .preview { width: 96px; height: 96px; object-fit: cover; border-radius: var(--r-md); }
 .actions.static { position: static; padding: 8px 0 0; background: none; display: flex; flex-direction: column; gap: 8px; }
 .main.danger { background: transparent; color: var(--danger); }
+
+.count { margin: 12px var(--pad) 0; padding: 14px 16px; border-radius: var(--r-lg); background: var(--bg2); display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.count b { font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
+.count span { color: var(--hint); text-align: right; }
+.count.today { justify-content: center; }
+.badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 12px; background: var(--bg2); color: var(--tx); margin-right: 6px; }
+.badge.must { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+.badge.want { background: color-mix(in srgb, var(--amber) 22%, transparent); }
+.badge.draft { background: var(--bg2); color: var(--hint); }
+.note { white-space: pre-wrap; margin: 10px 0 0; overflow-wrap: anywhere; }
+.st.tag { color: var(--hint); border: 1px solid var(--sep); border-radius: 99px; padding: 1px 8px; }
+.links { display: flex; gap: 16px; }
+.link.plain { background: none; border: 0; padding: 0; margin-top: 12px; cursor: pointer; font: inherit; }
+.notice { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: 90%; background: var(--tx); color: var(--bg); padding: 10px 16px; border-radius: var(--r-md); z-index: 5; }
