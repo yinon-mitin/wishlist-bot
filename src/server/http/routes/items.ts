@@ -6,6 +6,7 @@ import { toItemDto } from '../../domain/views';
 import type { ClaimRow, ItemRow } from '../../domain/types';
 import { getOpenRound } from '../../domain/rounds';
 import { messages } from '../../messages';
+import { collectImage } from '../../services/images';
 import { HttpError, type AppDeps, type AppEnv } from '../../deps';
 import type { Viewer } from '../../../shared/types';
 import { requireOwner } from '../guards';
@@ -127,6 +128,7 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
       .prepare('SELECT * FROM claims WHERE item_id = ? AND round_id = ?')
       .all(id, getOpenRound(db).id) as ClaimRow[];
     deleteItem(db, id);
+    await collectImage(db, config.dataDir, existing.image_file);
     // Tell people whose reservation just vanished; delivery trouble never changes the answer.
     for (const claim of claims) {
       await deps.notifier.send(claim.user_id, messages.itemRemoved(claim.lang, existing.title)).catch(() => false);

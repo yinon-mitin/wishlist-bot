@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { authMiddleware } from '../auth/middleware';
 import { HttpError, type AppDeps, type AppEnv } from '../deps';
 import { errorHandler } from './errors';
+import { imageRoutes, publicImageRoutes } from './routes/images';
 import { itemsRoutes } from './routes/items';
 import { linkRoutes } from './routes/link';
 import { meRoutes } from './routes/me';
@@ -26,12 +27,15 @@ export function createApp(deps: AppDeps, opts: AppOptions = {}): Hono<AppEnv> {
   api.route('/', meRoutes(deps));
   api.route('/', ratesRoutes(deps));
   api.route('/', itemsRoutes(deps));
+  api.route('/', imageRoutes(deps));
   api.route('/', linkRoutes(deps));
   opts.extraRoutes?.(api, deps);
   api.all('*', () => {
     throw new HttpError(404, 'not_found');
   });
   app.route('/api', api);
+
+  app.route('/', publicImageRoutes(deps));
 
   app.get('*', staticHandler(opts.webRoot ?? 'dist/web'));
   return app;
