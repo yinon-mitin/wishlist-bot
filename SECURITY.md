@@ -23,6 +23,7 @@ Design details: [Architecture](docs/ARCHITECTURE.md).
 
 - **The owner's blindness is an application guarantee, not cryptography.** Whoever controls the server can read the SQLite file.
 - **The nightly backup and `/backup` send the database to the owner's Telegram chat, and it contains the reservations.** Do not open these files before the reveal if you want to be surprised.
+- **There is no guest allow-list.** Anyone who opens your bot can see the list and the names of other guests and can reserve or chip in. Share the link only where you are happy with that.
 - The public address (Tailscale Funnel or a proxy) exposes the app to the internet. Only the signed Telegram session opens the API, but keep the system and Docker updated.
 - Guests' Telegram names and ids are stored with their reservations so that the thank-you messages can be sent.
 

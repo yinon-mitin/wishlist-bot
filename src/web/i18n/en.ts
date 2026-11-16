@@ -38,6 +38,7 @@ export const en = {
   'item.error.already_claimed': 'Someone has just reserved this gift.',
   'item.error.network': 'No connection. Try again.',
   'item.error.not_found': 'This gift is no longer available.',
+  'item.error.unauthorized': 'Your session has expired. Close the app and open it again.',
   'item.error.generic': 'Something went wrong. Try again.',
 
   'fund.title': 'Chip in together',

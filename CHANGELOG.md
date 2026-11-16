@@ -39,3 +39,5 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The mini-app now opens the gift from a `startapp` link: Telegram launches with `#tgWebAppData=…` already in the URL hash, which the router mistook for "already somewhere".
 - Telegram's script was dropped from the production bundle (and its default export mis-unwrapped), so requests carried no credentials; the client now reads `window.Telegram.WebApp` directly and keeps the import alive.
 - The Docker build copies `scripts/`, which the web build needs for its bundle-size check.
+- An expired Telegram session now says to reopen the app instead of showing a vague error.
+- `make check` no longer fails when `.env` does not exist yet (it validates the Compose file against the template).

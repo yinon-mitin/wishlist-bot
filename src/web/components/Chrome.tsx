@@ -26,6 +26,7 @@ export const errorText = (code: string): string =>
   code === 'already_claimed' ? t('item.error.already_claimed')
   : code === 'not_found' ? t('item.error.not_found')
   : code === 'network' ? t('item.error.network')
+  : code === 'unauthorized' ? t('item.error.unauthorized')
   : t('item.error.generic');
 
 export function Screen({ title, back, children }: { title: string; back?: string; children: ComponentChildren }) {

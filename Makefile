@@ -12,7 +12,7 @@ check:
 	@npm run --silent typecheck
 	@node scripts/validate-docs.mjs
 	@node scripts/check-repository-safety.mjs
-	@$(COMPOSE) config --quiet
+	@if [ -f .env ]; then $(COMPOSE) config --quiet; else cp .env.example .env && $(COMPOSE) config --quiet; rc=$$?; rm -f .env; exit $$rc; fi
 
 build:
 	@$(COMPOSE) build

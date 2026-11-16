@@ -178,6 +178,12 @@ describe('list and home', () => {
 });
 
 describe('failures', () => {
+  it('an expired Telegram session says to reopen the app instead of a vague error', async () => {
+    apiMock.mockRejectedValue(new ApiError(401, 'unauthorized'));
+    mount(<List />);
+    await screen.findByText('Your session has expired. Close the app and open it again.');
+  });
+
   it('offline: shows a message and a retry button that reloads', async () => {
     apiMock.mockRejectedValueOnce(new ApiError(0, 'network')).mockResolvedValue([]);
     mount(<List />);

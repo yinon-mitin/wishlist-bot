@@ -140,6 +140,22 @@ test('on the birthday the owner wraps up the round, the giver is thanked and the
   expect(rounds).toEqual([{ status: 'revealed', date: '2027-03-14' }, { status: 'open', date: '2028-03-14' }]);
 });
 
+test('the app talks to nobody but its own server', async ({ browser, world }) => {
+  const { id } = await addItem(world, { title: 'Mug', priority: 'must' });
+  const origins = new Set<string>();
+  const page = await (await browser.newContext()).newPage();
+  page.on('request', (r) => {
+    if (r.url().startsWith('http')) origins.add(new URL(r.url()).origin);
+  });
+  await world.open(page, guest(1));
+  await expect(page.getByText('Mug')).toBeVisible();
+  await page.getByRole('link', { name: /All gifts/ }).click();
+  await page.getByText('Mug').click();
+  await expect(page.getByRole('heading', { name: 'Mug' })).toBeVisible();
+  expect(id).toBeGreaterThan(0);
+  expect([...origins]).toEqual([world.url]);
+});
+
 test('the shipped JavaScript stays within the size budget', () => {
   expect(gzipJsBytes('dist/web')).toBeLessThan(90 * 1024);
 });
