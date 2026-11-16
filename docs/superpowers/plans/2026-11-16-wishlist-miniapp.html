@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wishlist mini-app — план реализации</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --muted:#5b6570; --line:#e3e7ec; --accent:#0f766e; --soft:#f4f7f9; --warn:#b45309; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14181d; --fg:#e6e9ed; --muted:#9aa5b1; --line:#2a313a; --accent:#2dd4bf; --soft:#1b2128; --warn:#fbbf24; } }
+  body { background:var(--bg); color:var(--fg); font:15.5px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; margin:0; }
+  main { max-width:900px; margin:0 auto; padding:28px 16px 80px; }
+  h1 { font-size:1.8rem; margin:0 0 .3rem; }
+  h2 { font-size:1.3rem; margin:2.4rem 0 .5rem; padding-top:1rem; border-top:2px solid var(--line); }
+  h3 { font-size:1.05rem; margin:1.8rem 0 .3rem; }
+  code { background:var(--soft); padding:.1em .35em; border-radius:4px; font-size:.9em; }
+  pre { background:var(--soft); padding:.7rem .9rem; border-radius:6px; overflow-x:auto; font-size:.85rem; }
+  pre code { background:none; padding:0; }
+  .box { background:var(--soft); border-left:4px solid var(--accent); padding:.5rem .9rem; margin:.8rem 0; border-radius:0 6px 6px 0; }
+  .gate { border-left-color:var(--warn); }
+  .task { border:1px solid var(--line); border-radius:8px; padding:.2rem 1rem .6rem; margin:1rem 0; }
+  .task h3 { margin-top:.8rem; }
+  .meta { color:var(--muted); font-size:.9rem; margin:.2rem 0; }
+  ul.steps { list-style:none; padding-left:0; margin:.5rem 0; }
+  ul.steps li { margin:.4rem 0; padding-left:1.6rem; position:relative; }
+  ul.steps li input { position:absolute; left:0; top:.35rem; }
+  .tag { display:inline-block; font-size:.75rem; padding:.02rem .5rem; border-radius:99px; border:1px solid var(--line); color:var(--muted); margin-left:.3rem; }
+  table { border-collapse:collapse; width:100%; margin:.6rem 0; font-size:.92rem; }
+  th, td { border:1px solid var(--line); padding:.4rem .6rem; text-align:left; vertical-align:top; }
+  th { background:var(--soft); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Wishlist mini-app — план реализации</h1>
+<p class="meta">2026-11-16 · для исполнителя, который не видел ни кода, ни разговора · шаги отмечаются чекбоксами (<code>checked</code>) прямо в этом файле</p>
+
+<div class="box"><strong>Для исполнителя:</strong> используй <code>superpowers:subagent-driven-development</code> (рекомендуется) или <code>superpowers:executing-plans</code>. Следуй шагам по порядку.</div>
+
+<p><strong>Цель:</strong> Telegram mini-app с постоянным вишлистом на дни рождения: гости бронируют и скидываются на подарки, именинник не видит броней до итогов.</p>
+<p><strong>Архитектура:</strong> один TypeScript-контейнер: Hono (API и статика SPA) + grammY (бот, long polling) + SQLite на volume + планировщик (курсы, бэкап). Фронтенд на Preact + Vite. Вход через Tailscale Funnel на Mac mini.</p>
+<p><strong>Стек:</strong> Node 22, TypeScript, Hono + <code>@hono/node-server</code>, grammY, <code>better-sqlite3</code>, <code>zod</code>, <code>sharp</code>, <code>cheerio</code>, <code>undici</code>, Preact, Vite, <code>@twa-dev/sdk</code> (вшит в бандл, внешних скриптов нет), Vitest, Playwright.</p>
+<p><strong>Спецификация:</strong> <code>docs/superpowers/specs/2026-11-16-wishlist-miniapp-design.html</code> (прочитать целиком до начала).</p>
+
+<h2>Глобальные ограничения</h2>
+<ul>
+  <li>Лицензия Apache-2.0 (текст взять из <code>/home/yinon/Projects/iris/LICENSE</code>). Образ <code>linux/arm64</code> (Mac mini), также должен собираться на amd64.</li>
+  <li>Один язык (TypeScript) и один контейнер. Бот на long polling. Публичный вход через Tailscale Funnel; гостям Tailscale не нужен.</li>
+  <li>Конфигурация только через <code>.env</code>: <code>BOT_TOKEN</code>, <code>OWNER_ID</code>, <code>PUBLIC_URL</code>, <code>BIRTHDAY</code> (MM-DD), <code>CURRENCIES</code> (по умолчанию <code>RUB,ILS,USD,EUR</code>), <code>DEFAULT_CURRENCY</code>, <code>DATA_DIR</code>, плюс <code>TIMEZONE</code>, <code>PORT</code>, <code>BOT_USERNAME</code>, <code>APP_SHORT_NAME</code>, <code>BACKUP_KEEP</code> (7), <code>BACKUP_HOUR</code> (3), <code>INITDATA_MAX_AGE_SEC</code> (86400).</li>
+  <li>Авторизация: подпись <code>initData</code> (HMAC) токеном бота и срок давности. Роль владельца определяется только на сервере по <code>OWNER_ID</code>.</li>
+  <li>Инвариант: ни один ответ API владельцу не содержит данных о бронях и взносах (ни имён, ни статуса, ни прогресса) до закрытия раунда.</li>
+  <li>Языки ru и en, каталоги строк с одинаковым набором ключей. Внешних запросов с клиента нет (шрифты, скрипты, картинки только с нашего origin).</li>
+  <li>RED-GREEN в каждой задаче: тест падает по названной причине, затем минимальный код. В том же коммите запись в <code>CHANGELOG.md</code> (Keep a Changelog, раздел <code>Unreleased</code>).</li>
+  <li>Деньги хранятся целым числом в минимальных единицах (<code>priceMinor</code>); поддерживаются только валюты с 2 знаками после запятой.</li>
+  <li>Git-идентичность репозитория уже задана локально. Каждый коммит оканчивается строкой <code>Co-Authored-By: Claude Sonnet 5.5 &lt;noreply@anthropic.com&gt;</code>. Репозиторий на GitHub не создавать и ничего не пушить без разрешения владельца. В коммитах только <code>.env.example</code>, без реальных секретов.</li>
+  <li>Документы для GitHub (README, SECURITY, CONTRIBUTING, docs/) в Markdown на английском по образцу Iris (<code>/home/yinon/Projects/iris</code>); диаграммы и баннер в SVG.</li>
+</ul>
+
+<h2>Review Focus</h2>
+<p>Пять входов и условий, которые спецификация подразумевает, но обычные тесты их не проверят. Каждому отведён тест в задаче-владельце.</p>
+<ol>
+  <li><strong>Утечка броней владельцу через побочные пути:</strong> тексты ошибок, коды 409/403, правка и удаление подарка с бронью, порядок и поля списков. Владелец должен видеть абсолютно одинаковый ответ для забронированного и свободного подарка (Задачи 8, 10, 25).</li>
+  <li><strong>Подделанный или просроченный <code>initData</code>:</strong> нет <code>hash</code>, изменённое поле, <code>auth_date</code> из будущего или старше лимита, пустая строка. Ответ 401, без сведений о причине (Задача 3).</li>
+  <li><strong>Гонки и повторы:</strong> двойной тап «Забронировать», два гостя одновременно, два взноса, которые вместе превышают цену. Ровно один победитель, сумма взносов никогда не больше цены (Задачи 9, 25).</li>
+  <li><strong>Враждебные ссылки и файлы:</strong> редиректы и DNS на приватные адреса, схемы не http(s), HTML на сотни МБ, не UTF-8, относительный <code>og:image</code>; загрузка SVG, не-картинок, огромных файлов; EXIF с GPS должен вырезаться (Задачи 11, 12).</li>
+  <li><strong>Границы суток и часовой пояс:</strong> отсчёт до дня рождения в день X и сутки после, <code>BIRTHDAY=02-29</code> в невисокосный год, доступность «Подвести итоги» ровно в полночь по <code>TIMEZONE</code> (Задачи 6, 18, 23).</li>
+</ol>
+<p>Также во всех сообщениях бота имена гостей экранируются для HTML-режима, а сбой доставки (бот заблокирован) никогда не ломает основную операцию.</p>
+
+<h2>Общие контракты</h2>
+<p>Эти имена и типы используют все задачи. Не переименовывать.</p>
+<pre><code>// src/shared/types.ts
+export type Lang = 'ru' | 'en';
+export type Priority = 'must' | 'want' | 'nice';
+export type ItemStatus = 'draft' | 'published' | 'received' | 'archived';
+export type ClaimKind = 'full' | 'share';
+export interface Viewer { id: number; name: string; lang: Lang; isOwner: boolean }
+export interface ClaimDto { userId: number; name: string; kind: ClaimKind; amountMinor: number | null; mine: boolean }
+export interface ItemDto {
+  id: number; title: string; description: string; url: string | null;
+  priceMinor: number | null; currency: string | null; imageUrl: string | null;
+  priority: Priority; note: string; status: ItemStatus; groupFunding: boolean;
+  claims?: ClaimDto[];                       // ТОЛЬКО для гостей; у владельца ключа нет вообще
+  funding?: { raisedMinor: number; remainingMinor: number };  // то же
+}
+export interface Rates { base: 'USD'; rates: Record&lt;string, number&gt;; fetchedAt: string }
+
+// src/server/config.ts
+export interface Config { botToken: string; ownerId: number; publicUrl: string; birthday: string /*MM-DD*/;
+  timezone: string; currencies: string[]; defaultCurrency: string; dataDir: string; port: number;
+  botUsername?: string; appShortName?: string; backupKeep: number; backupHour: number; initDataMaxAgeSec: number }
+export function loadConfig(env: Record&lt;string, string | undefined&gt;): Config;   // бросает Error с перечнем проблем
+
+// src/server/deps.ts
+export type Clock = () =&gt; Date;
+export interface Notifier {
+  send(userId: number, html: string): Promise&lt;boolean&gt;;                       // false при сбое доставки
+  sendDocument(userId: number, path: string, caption: string): Promise&lt;boolean&gt;;
+}
+export interface AppDeps { config: Config; db: import('better-sqlite3').Database; clock: Clock;
+  rates: RatesService; notifier: Notifier; fetchImpl?: typeof fetch }
+export class HttpError extends Error { constructor(public status: number, public code: string) }
+// ошибки API: JSON { error: code }, без подробностей
+</code></pre>
+
+<h2>Файловая структура</h2>
+<pre><code>package.json  tsconfig.json  vite.config.ts  vitest.config.ts  Dockerfile  docker-compose.yml  Makefile
+.env.example  .gitignore  .dockerignore  CHANGELOG.md  LICENSE  NOTICE  .github/workflows/validate.yml
+src/shared/        types.ts  currencies.ts  money.ts
+src/server/        index.ts  config.ts  deps.ts
+  db/              db.ts  migrate.ts  migrations/001_init.sql
+  auth/            initData.ts  middleware.ts
+  domain/          rounds.ts  items.ts  claims.ts  views.ts  reveal.ts
+  services/        rates.ts  ssrf.ts  linkPreview.ts  images.ts  backup.ts  scheduler.ts  deeplink.ts
+  http/            app.ts  routes/{me,items,claims,rates,link,images,rounds}.ts
+  bot/             bot.ts  notifier.ts
+src/web/           main.tsx  app.tsx  tg.ts  api.ts  router.ts  i18n/{index,en,ru}.ts  styles/tokens.css
+  pages/           Home.tsx  List.tsx  Item.tsx  admin/{ItemForm,Reveal}.tsx   components/*
+tests/helpers/     initData.ts  testApp.ts      tests/server/*.test.ts   tests/web/*.test.tsx   tests/e2e/*.spec.ts
+scripts/           check-bundle-size.mjs  check-repository-safety.mjs  validate-docs.mjs
+docs/              INSTALL.md  ARCHITECTURE.md  OPERATIONS.md      assets/banner.svg  README.md  SECURITY.md  CONTRIBUTING.md</code></pre>
+
+<!-- ============================ M0 ============================ -->
+<h2>M0. Фундамент</h2>
+
+<div class="task">
+<h3>Задача 1: Каркас проекта и конфигурация</h3>
+<p class="meta">Files: создать <code>package.json</code>, <code>tsconfig.json</code>, <code>vitest.config.ts</code>, <code>.gitignore</code>, <code>.env.example</code>, <code>CHANGELOG.md</code>, <code>LICENSE</code>, <code>src/server/config.ts</code>; тест <code>tests/server/config.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>loadConfig</code>, <code>Config</code> (см. контракты); скрипты <code>npm test</code> (<code>vitest run</code>), <code>npm run typecheck</code> (<code>tsc --noEmit</code>), <code>npm run build</code>, <code>npm run dev</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты <code>config.test.ts</code>: «минимальный env даёт значения по умолчанию» (<code>currencies</code> = <code>['RUB','ILS','USD','EUR']</code>, <code>backupKeep</code> = 7, <code>initDataMaxAgeSec</code> = 86400, <code>defaultCurrency</code> = первая валюта); «пропущенные <code>BOT_TOKEN</code>/<code>OWNER_ID</code>/<code>PUBLIC_URL</code> дают одну ошибку, называющую все три»; «<code>BIRTHDAY=13-40</code> отвергается»; «<code>PUBLIC_URL</code> без https отвергается, кроме <code>http://localhost</code>»; «<code>DEFAULT_CURRENCY</code> вне <code>CURRENCIES</code> отвергается»; «валюта не из списка 2-значных отвергается».</label></li>
+<li><label><input type="checkbox"> Шаг 2. <code>npx vitest run tests/server/config.test.ts</code>. Ожидается: FAIL, <code>loadConfig</code> не найден.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать <code>loadConfig(env)</code> на <code>zod</code>, собрать все ошибки в одно сообщение. Список допустимых валют пока лежит в <code>src/shared/currencies.ts</code> как <code>SUPPORTED_CURRENCIES: readonly string[]</code> (RUB, ILS, USD, EUR, GBP, UAH, KZT, PLN, CHF, CAD, AUD, TRY, GEL, AMD и т.д., только 2-значные). Заполнить <code>.env.example</code> всеми переменными с комментариями.</label></li>
+<li><label><input type="checkbox"> Шаг 4. <code>npm test &amp;&amp; npm run typecheck</code>. Ожидается: PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>chore: project scaffold and typed config</code> (+ <code>CHANGELOG.md</code> с разделом <code>Unreleased</code>).</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 2: База данных и миграции</h3>
+<p class="meta">Files: <code>src/server/db/db.ts</code>, <code>src/server/db/migrate.ts</code>, <code>src/server/db/migrations/001_init.sql</code>; тест <code>tests/server/db.test.ts</code></p>
+<p class="meta"><strong>Consumes:</strong> <code>Config.dataDir</code>. <strong>Produces:</strong> <code>openDb(path: string): Database</code> (WAL, <code>foreign_keys=ON</code>, <code>busy_timeout=5000</code>; <code>':memory:'</code> допустим), <code>migrate(db): number</code> (возвращает версию).</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «<code>migrate</code> создаёт таблицы <code>rounds</code>, <code>items</code>, <code>claims</code>, <code>rates</code>, <code>settings</code>»; «повторный <code>migrate</code> ничего не меняет и возвращает ту же версию»; «внешний ключ <code>claims.item_id</code> отвергает несуществующий подарок»; «частичный уникальный индекс не даёт второй <code>full</code>-бронь на один подарок в раунде»; «<code>UNIQUE(item_id, round_id, user_id)</code> не даёт дважды одному пользователю».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запустить тест. Ожидается: FAIL, модуль не найден.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать миграции как нумерованные <code>.sql</code> с таблицей <code>schema_migrations</code>, каждая в транзакции. Схема <code>001_init.sql</code>: <code>rounds(id, year, date TEXT, status CHECK IN ('open','revealed'), created_at, revealed_at)</code>; <code>items(id, title, description, url, price_minor, currency, image_file, priority DEFAULT 'want', note DEFAULT '', status DEFAULT 'published', group_funding INTEGER DEFAULT 0, created_at, updated_at)</code>; <code>claims(id, item_id, round_id, user_id, user_name, kind CHECK IN ('full','share'), amount_minor, created_at)</code>; <code>rates(base, payload_json, fetched_at)</code>; <code>settings(key, value)</code>.</label></li>
+<li><label><input type="checkbox"> Шаг 4. Тесты проходят.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat(db): sqlite schema with rounds, items and claims</code> + запись в <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 3: Проверка <code>initData</code> и авторизация</h3>
+<p class="meta">Files: <code>src/server/auth/initData.ts</code>, <code>src/server/auth/middleware.ts</code>, <code>tests/helpers/initData.ts</code>; тест <code>tests/server/auth.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>verifyInitData(raw: string, botToken: string, now: Date, maxAgeSec: number): { id: number; name: string; lang: Lang } | null</code>; <code>authMiddleware(deps): MiddlewareHandler</code> читает заголовок <code>Authorization: tma &lt;initData&gt;</code>, кладёт <code>Viewer</code> в <code>c.get('viewer')</code> (<code>isOwner = id === config.ownerId</code>), иначе <code>HttpError(401,'unauthorized')</code>. Хелпер тестов: <code>signInitData(opts: { botToken: string; user: { id: number; first_name: string; last_name?: string; language_code?: string }; authDate: Date }): string</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты (алгоритм: секрет = HMAC-SHA256(ключ <code>"WebAppData"</code>, токен), хеш = HMAC(секрет, строка проверки из отсортированных полей без <code>hash</code>)): «валидная подпись возвращает пользователя с именем «Имя Фамилия»»; «изменённое поле → <code>null</code>»; «нет <code>hash</code> → <code>null</code>»; «<code>auth_date</code> старше лимита → <code>null</code>»; «<code>auth_date</code> из будущего больше чем на 60 с → <code>null</code>»; «пустая строка и мусор → <code>null</code> без исключения»; «<code>language_code=ru</code> → <code>ru</code>, <code>uk</code>/пусто/любой другой → <code>en</code>»; «сравнение хеша через <code>timingSafeEqual</code>»; «запрос без заголовка или с чужим токеном → 401 <code>{error:'unauthorized'}</code>»; «<code>OWNER_ID</code> даёт <code>isOwner=true</code>».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL, функции нет.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать по сигнатурам выше.</label></li>
+<li><label><input type="checkbox"> Шаг 4. Тесты проходят.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat(auth): verify Telegram initData</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 4: HTTP-приложение, Docker, Compose, CI</h3>
+<p class="meta">Files: <code>src/server/http/app.ts</code>, <code>src/server/index.ts</code>, <code>Dockerfile</code>, <code>docker-compose.yml</code>, <code>Makefile</code>, <code>.dockerignore</code>, <code>.github/workflows/validate.yml</code>, <code>tests/helpers/testApp.ts</code>; тест <code>tests/server/app.test.ts</code></p>
+<p class="meta"><strong>Consumes:</strong> <code>AppDeps</code>, <code>authMiddleware</code>, <code>openDb</code>, <code>migrate</code>. <strong>Produces:</strong> <code>createApp(deps: AppDeps): Hono</code> (<code>GET /healthz</code> без авторизации, всё под <code>/api</code> за <code>authMiddleware</code>, глобальный обработчик <code>HttpError</code> и неожиданных ошибок → <code>{error}</code> без стека, статика SPA из <code>dist/web</code> с fallback на <code>index.html</code>); <code>createTestApp(overrides?): { app; db; clock; notifier: FakeNotifier; rates; config; call(path, opts: { as?: Viewer | 'anon'; method?; json? }): Promise&lt;Response&gt; }</code> (in-memory БД, управляемые часы, подписывает <code>initData</code> тестовым токеном).</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «<code>/healthz</code> отвечает 200 без заголовка»; «<code>/api/me</code> без авторизации → 401»; «неизвестный <code>/api/x</code> → 404 JSON»; «исключение в обработчике → 500 <code>{error:'internal'}</code> без стека в теле»; «GET неизвестного пути вне <code>/api</code> отдаёт <code>index.html</code>».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать <code>createApp</code> и <code>index.ts</code> (загрузка конфига, БД, <code>migrate</code>, <code>serve</code> на <code>PORT</code>, корректное завершение по <code>SIGTERM</code>). Dockerfile: многоэтапный на <code>node:22-bookworm-slim</code>, сборка <code>npm run build</code>, непривилегированный пользователь, <code>HEALTHCHECK</code> на <code>/healthz</code>, <code>VOLUME /data</code>. Compose: сервис <code>wishlist</code>, <code>env_file: .env</code>, volume <code>./data:/data</code>, порт <code>127.0.0.1:${PORT:-8080}:8080</code> (наружу его открывает только Funnel), <code>restart: unless-stopped</code>. Makefile по образцу Iris: <code>init check build test up down logs</code>. Workflow: <code>npm ci</code>, <code>typecheck</code>, <code>test</code>, <code>docker compose config</code>.</label></li>
+<li><label><input type="checkbox"> Шаг 4. <code>npm test</code>; затем <code>docker compose build &amp;&amp; docker compose up -d</code>, <code>curl -fs localhost:8080/healthz</code>. Ожидается: PASS и 200.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: http app, docker image and CI</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<!-- ============================ M1 ============================ -->
+<h2>M1. Ядро вишлиста</h2>
+<div class="box">Задачи 5–13 — серверная часть. Они не зависят от внешнего вида. Дальше идёт <strong>интерактивный гейт</strong> (Задача 14), после него UI.</div>
+
+<div class="task">
+<h3>Задача 5: Деньги и валюты</h3>
+<p class="meta">Files: <code>src/shared/money.ts</code>, дополнить <code>src/shared/currencies.ts</code>; тест <code>tests/server/money.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>toMinor(input: string, currency?: string): number | null</code> (принимает «1299», «1 299,50», «1,299.50», «₽» не принимает); <code>formatMoney(minor: number, currency: string, lang: Lang): string</code> (через <code>Intl.NumberFormat</code>); <code>convertMinor(minor: number, from: string, to: string, rates: Rates): number</code> (через USD, округление половины вверх).</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «<code>toMinor('1 299,50')</code> = 129950»; «<code>toMinor('1,299.50')</code> = 129950»; «<code>toMinor('abc')</code> = null»; «<code>convertMinor(10000,'USD','RUB',{USD:1,RUB:90})</code> = 900000»; «RUB→ILS идёт через USD и округляется до целых копеек/агорот»; «та же валюта возвращает исходное число без потерь»; «неизвестная валюта бросает ошибку»; «<code>formatMoney(129950,'RUB','ru')</code> содержит «1 299,50» и «₽»».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать. Модуль общий для сервера и клиента, без зависимостей от Node.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: money parsing, formatting and conversion</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 6: Раунды (дни рождения)</h3>
+<p class="meta">Files: <code>src/server/domain/rounds.ts</code>; тест <code>tests/server/rounds.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>nextBirthday(birthday: string, from: Date, timezone: string): string</code> (дата <code>YYYY-MM-DD</code> не раньше «сегодня» в часовом поясе); <code>daysUntil(date: string, now: Date, timezone: string): number</code>; <code>ensureOpenRound(db, config, now: Date): Round</code> (если открытого нет — создаёт на ближайший день рождения); <code>getOpenRound(db): Round</code>; тип <code>Round { id; year; date; status; revealedAt: string | null }</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «день рождения сегодня → дата сегодняшняя, <code>daysUntil</code>=0»; «на следующий день после → следующий год»; «<code>02-29</code> в невисокосный год → 28 февраля»; «полночь по <code>Asia/Jerusalem</code> меняет сутки, а не по UTC» (одно и то же <code>Date</code> даёт разные дни для двух поясов); «<code>ensureOpenRound</code> идемпотентен, не создаёт второй открытый раунд»; «в базе не бывает двух открытых раундов (уникальный частичный индекс добавить в <code>002_open_round_unique.sql</code>)».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать на <code>Intl.DateTimeFormat</code> с <code>timeZone</code>, без сторонних библиотек дат.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: birthday rounds</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 7: Курсы валют</h3>
+<p class="meta">Files: <code>src/server/services/rates.ts</code>, <code>src/server/http/routes/rates.ts</code>; тест <code>tests/server/rates.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>interface RateProvider { fetchRates(): Promise&lt;Record&lt;string, number&gt;&gt; }</code>; <code>ErApiProvider(fetchImpl)</code> — <code>https://open.er-api.com/v6/latest/USD</code> (бесплатно, без ключа, содержит RUB и ILS; в README указать атрибуцию); <code>class RatesService { constructor(db, provider, clock, wanted: string[]); refresh(): Promise&lt;boolean&gt;; get(): Rates | null }</code>; <code>GET /api/rates</code> → <code>Rates</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты (фейковый <code>fetch</code>): «<code>refresh</code> сохраняет только нужные валюты и <code>USD:1</code>»; «при ошибке сети <code>refresh</code> возвращает false и <code>get</code> отдаёт прежний кэш»; «ответ без одной из нужных валют не затирает кэш»; «курс ≤ 0 или не число отвергается»; «после перезапуска <code>get</code> читает кэш из БД»; «<code>/api/rates</code> отдаёт 503 <code>{error:'rates_unavailable'}</code>, пока кэша нет».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать; запрос с таймаутом 10 с.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS. Дополнительно один раз вручную проверить, что живой ответ содержит RUB и ILS (<code>curl -s https://open.er-api.com/v6/latest/USD | grep -o '"RUB"\|"ILS"'</code>). Если нет, заменить провайдера за тем же интерфейсом (запасной вариант: <code>fawazahmed0/currency-api</code> через jsDelivr).</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: cached currency rates</code> + <code>CHANGELOG</code>. Планировщик обновления (раз в 12 ч и при старте) подключается в Задаче 20.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 8: Подарки, CRUD для владельца</h3>
+<p class="meta">Files: <code>src/server/domain/items.ts</code>, <code>src/server/http/routes/items.ts</code> (часть владельца); тест <code>tests/server/items-owner.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>createItem(db, input: ItemInput, now): ItemRow</code>, <code>updateItem(db, id, patch, now): ItemRow | null</code>, <code>deleteItem(db, id): boolean</code>; <code>ItemInput { title: string (1–200); description?: string (≤4000); url?: string (http/https, ≤2000); priceMinor?: number (целое &gt; 0); currency?: string (из конфига); imageFile?: string }</code>; маршруты <code>POST /api/items</code>, <code>PATCH /api/items/:id</code>, <code>DELETE /api/items/:id</code> — только <code>isOwner</code>, иначе 403 <code>{error:'forbidden'}</code>. Тела проверяет <code>zod</code>, лишние поля отвергаются. Формирование <code>ItemDto</code> для ответов — в Задаче 10.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «гость → 403 на все три маршрута»; «создание с пустым названием → 400»; «цена без валюты → 400»; «валюта не из <code>CURRENCIES</code> → 400»; «<code>url</code> со схемой <code>javascript:</code> → 400»; «PATCH меняет только присланные поля и обновляет <code>updated_at</code>»; «PATCH/DELETE несуществующего → 404»; «в ответах <code>POST</code>/<code>PATCH</code>/<code>DELETE</code> владельцу нет полей <code>claims</code> и <code>funding</code>» (инвариант, см. Задачу 10).</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать. Поля <code>priority</code>, <code>note</code>, <code>status</code>, <code>group_funding</code> пока не принимаются (Задачи 19, 20, 25).</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: owner item management API</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 9: Брони «целиком» (атомарно)</h3>
+<p class="meta">Files: <code>src/server/domain/claims.ts</code>; тест <code>tests/server/claims.test.ts</code></p>
+<p class="meta"><strong>Consumes:</strong> <code>getOpenRound</code>. <strong>Produces:</strong> <code>claimFull(db, itemId: number, viewer: Viewer, now: Date): ClaimRow</code> и <code>releaseClaim(db, itemId, viewer): void</code>; ошибки <code>HttpError(404,'not_found')</code>, <code>(403,'owner_cannot_claim')</code>, <code>(409,'already_claimed')</code>. Каждая операция в <code>BEGIN IMMEDIATE</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «гость бронирует свободный подарок»; «второй гость получает 409 <code>already_claimed</code>»; «тот же гость повторно (двойной тап) получает ту же бронь без дубля (идемпотентно)»; «две конкурирующие брони подряд в одной транзакции: ровно одна выигрывает»; «снять может только автор, остальные получают 403»; «владелец не может бронировать → 403»; «бронь несуществующего → 404»; «бронь привязана к открытому раунду»; «имя сохраняется на момент брони».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать; победитель определяется уникальным индексом, а не проверкой «прочитал-записал».</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: atomic gift reservations</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 10: Представления и гостевые маршруты (главный инвариант)</h3>
+<p class="meta">Files: <code>src/server/domain/views.ts</code>, <code>src/server/http/routes/items.ts</code> (чтение), <code>src/server/http/routes/claims.ts</code>, <code>src/server/http/routes/me.ts</code>; тест <code>tests/server/visibility.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>toItemDto(item, claims, viewer: Viewer, config): ItemDto</code> — <em>единственное</em> место, где собираются ответы про подарки; для владельца ключи <code>claims</code> и <code>funding</code> не добавляются; маршруты <code>GET /api/items</code>, <code>GET /api/items/:id</code>, <code>POST /api/items/:id/claim</code>, <code>DELETE /api/items/:id/claim</code>, <code>GET /api/me</code> → <code>{ viewer, config: { currencies, defaultCurrency, birthday, botUsername, appShortName } }</code>. Список гостю: только <code>published</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «гость видит <code>claims</code> с именами и <code>mine</code>=true только у своей»; «<b>для владельца JSON всех ответов (<code>GET /api/items</code>, <code>GET /api/items/:id</code>, <code>POST/PATCH/DELETE</code>, <code>/api/me</code>) не содержит ни имени, ни id чужого гостя, ни слов <code>claims</code>/<code>funding</code></b>» (наполнить базу бронями, обойти все маршруты как владелец, искать подстроки); «забронированный и свободный подарок для владельца дают структурно одинаковые ответы (сравнить ключи и значения полей, кроме <code>id</code>/<code>title</code>)»; «владелец, пытающийся забронировать, получает тот же 403, независимо от того, занят подарок или нет»; «порядок списка не зависит от наличия брони»; «заголовки ответа владельцу не содержат ETag/Last-Modified, зависящих от брони».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать. Маршруты чтения и брони вызывают только <code>toItemDto</code>. Владельческие маршруты Задачи 8 переключить на него же. Ответы на изменение клейма: <code>ItemDto</code> подарка.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS (включая тесты Задачи 8).</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: guest API and owner-blind item views</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 11: Безопасная загрузка по ссылке и предпросмотр</h3>
+<p class="meta">Files: <code>src/server/services/ssrf.ts</code>, <code>src/server/services/linkPreview.ts</code>, <code>src/server/http/routes/link.ts</code>; тесты <code>tests/server/ssrf.test.ts</code>, <code>tests/server/link-preview.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>isBlockedAddress(ip: string): boolean</code> (loopback, private, link-local, CGNAT, multicast, <code>169.254.169.254</code>, IPv6 ULA, IPv4-mapped IPv6); <code>safeFetch(url: string, opts?: { maxBytes?: number; timeoutMs?: number; maxRedirects?: number }): Promise&lt;{ finalUrl: string; contentType: string; body: Buffer }&gt;</code> (<code>undici</code> с <code>Agent</code>, чей <code>connect.lookup</code> проверяет адрес, редиректы вручную до 3 с повторной проверкой, лимит 2 МБ, таймаут 8 с, только http/https); <code>parseLinkPreview(html: string, baseUrl: string): { title: string | null; description: string | null; imageUrl: string | null; priceMinor: number | null; currency: string | null; siteName: string | null }</code> (OpenGraph, <code>product:price:amount</code>/<code>og:price:amount</code>, JSON-LD <code>Product.offers</code>, запасной <code>&lt;title&gt;</code>; <code>imageUrl</code> абсолютизируется); <code>POST /api/link-preview {url}</code> — только владелец, ответ <code>{ ...preview, error?: 'unreachable' | 'blocked' | 'too_large' }</code> со статусом 200 (частичный результат лучше ошибки).</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты <code>ssrf.test.ts</code>: «блокируются <code>127.0.0.1</code>, <code>10.0.0.5</code>, <code>192.168.1.1</code>, <code>172.16.0.1</code>, <code>169.254.169.254</code>, <code>::1</code>, <code>fd00::1</code>, <code>::ffff:127.0.0.1</code>, <code>100.64.0.1</code>»; «публичные <code>8.8.8.8</code> и <code>2606:4700::1111</code> разрешены»; «схемы <code>file:</code>, <code>ftp:</code>, <code>gopher:</code> отвергаются»; «имя хоста, резолвящееся в приватный IP (подменённый <code>lookup</code>), блокируется»; «редирект на <code>http://127.0.0.1</code> блокируется»; «больше 3 редиректов → ошибка»; «ответ больше лимита прерывается»; «таймаут». Тесты <code>link-preview</code>: «OG-теги дают заголовок, описание, картинку»; «относительный <code>og:image</code> становится абсолютным»; «цена из JSON-LD <code>"1 299,00"</code> и валюта <code>RUB</code> разбираются»; «страница без тегов использует <code>&lt;title&gt;</code>»; «кодировка windows-1251 декодируется по <code>charset</code>»; «гость вызывает маршрут → 403»; «заблокированный URL → 200 с <code>error:'blocked'</code>».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать. Для тестов DNS и сети использовать внедряемый <code>lookup</code> и <code>MockAgent</code>/локальный сервер на <code>127.0.0.1</code> с флагом <code>allowLoopbackForTests</code>, который в продакшене недоступен.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: SSRF-safe link preview</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 12: Картинки</h3>
+<p class="meta">Files: <code>src/server/services/images.ts</code>, <code>src/server/http/routes/images.ts</code>; тест <code>tests/server/images.test.ts</code></p>
+<p class="meta"><strong>Consumes:</strong> <code>safeFetch</code>. <strong>Produces:</strong> <code>processImage(buf: Buffer, dataDir: string): Promise&lt;{ file: string; width: number; height: number }&gt;</code> (WebP, длинная сторона ≤1200, качество 80, EXIF и метаданные удалены, имя <code>&lt;sha256[:16]&gt;.webp</code>, хранение <code>$DATA_DIR/images</code>); <code>importImageFromUrl(url, dataDir): Promise&lt;string&gt;</code>; <code>POST /api/items/:id/image</code> (multipart, поле <code>file</code>, ≤8 МБ) и <code>POST /api/items/:id/image-from-url {url}</code> — только владелец, обновляют <code>image_file</code>; <code>GET /images/:file</code> (без авторизации, потому что <code>&lt;img&gt;</code> не умеет заголовков; имя — 16 hex + <code>.webp</code>, иначе 404; <code>Cache-Control: public, max-age=31536000, immutable</code>). <code>imageUrl</code> в <code>ItemDto</code> = <code>/images/&lt;file&gt;</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «JPEG 4000×3000 с GPS-EXIF превращается в WebP ≤1200 и без EXIF» (проверить метаданные <code>sharp</code>); «SVG отвергается 415»; «текстовый файл с расширением <code>.jpg</code> отвергается»; «файл больше 8 МБ → 413»; «повторная загрузка того же файла даёт то же имя»; «<code>/images/../../etc/passwd</code> и имя не по шаблону → 404»; «гость не может загружать → 403»; «картинка по ссылке на приватный адрес блокируется»; «замена картинки подарка не оставляет ссылок на несуществующий файл».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать; формат определять самим <code>sharp</code>, а не по расширению или <code>Content-Type</code>; <code>sharp.limitInputPixels</code> ограничить 50 Мпикс.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS; образ Docker собирается (<code>sharp</code> на arm64).</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: image upload and processing</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 13: Бот</h3>
+<p class="meta">Files: <code>src/server/bot/bot.ts</code>, <code>src/server/bot/notifier.ts</code>, дополнить <code>src/server/index.ts</code>; тест <code>tests/server/bot.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>createBot(config): Bot</code> (<code>/start</code> и <code>/help</code>: приветствие на языке пользователя и кнопка <code>web_app</code> на <code>PUBLIC_URL</code>); <code>GrammyNotifier(bot.api): Notifier</code> (ловит ошибки 403/400 и возвращает false, текст всегда HTML-экранирован вызывающим); <code>escapeHtml(s: string): string</code>. В <code>index.ts</code> бот стартует через <code>bot.start()</code> (long polling), при падении сети не роняет процесс, останавливается по <code>SIGTERM</code>; кнопка меню чата ставится <code>setChatMenuButton</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты (перехватить вызовы API транспорт-обёрткой grammY): «<code>/start</code> от пользователя с <code>ru</code> отвечает по-русски и содержит кнопку <code>web_app.url === PUBLIC_URL</code>»; «любой другой язык → английский»; «<code>escapeHtml('&lt;b&gt;&amp;')</code> экранирует»; «<code>send</code> возвращает false, когда API отвечает 403 “bot was blocked by the user”, и не бросает»; «<code>send</code> передаёт <code>parse_mode: 'HTML'</code>».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать. Ручная проверка с настоящим ботом выполняется в Задаче 29.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat(bot): start command and notifier</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task gate">
+<h3>Задача 14: Гейт. Визуальное направление (интерактивно, с владельцем)</h3>
+<p class="meta">Files: <code>src/web/styles/tokens.css</code>, <code>docs/superpowers/specs/2026-11-16-wishlist-miniapp-visual.html</code></p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Вызвать <code>frontend-design</code> и предложить владельцу визуальный компаньон (макеты главной, списка, карточки, формы подарка, экрана итогов в 2–3 стилях, учитывая Telegram-тему светлая/тёмная и стиль Iris). Не писать UI-код, пока владелец не выбрал направление.</label></li>
+<li><label><input type="checkbox"> Шаг 2. Зафиксировать выбор: палитра, шрифты (только системные или вшитые файлы), радиусы, плотность, иконки (inline SVG), настроение анимаций; записать в <code>tokens.css</code> как CSS-переменные, которые подхватывают <code>--tg-theme-*</code>.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Получить явное «ок» владельца. Коммит <code>docs: visual direction</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 15: Основа клиента (SDK, API-клиент, маршрутизация, i18n)</h3>
+<p class="meta">Files: <code>vite.config.ts</code>, <code>index.html</code>, <code>src/web/{main.tsx,app.tsx,tg.ts,api.ts,router.ts}</code>, <code>src/web/i18n/{index,en,ru}.ts</code>, <code>scripts/check-bundle-size.mjs</code>; тесты <code>tests/web/{i18n,api,router,bundle}.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>tg.ts</code>: <code>initDataRaw(): string</code>, <code>startParam(): string | null</code>, <code>haptic(kind)</code>, <code>ready()</code> (вызывает <code>WebApp.ready()</code>/<code>expand()</code>), хранилище предпочтений <code>prefs.get/set</code> (CloudStorage с запасным <code>localStorage</code>, оба в try/catch); <code>api.ts</code>: <code>api&lt;T&gt;(path, init?): Promise&lt;T&gt;</code> (добавляет <code>Authorization: tma &lt;initData&gt;</code>, ошибки → <code>ApiError { status; code }</code>); <code>router.ts</code>: хеш-маршруты <code>#/</code>, <code>#/items</code>, <code>#/item/:id</code>, <code>#/admin/item/new</code>, <code>#/admin/item/:id</code>, <code>#/admin/reveal</code>, <code>parseRoute(hash): Route</code>, <code>routeFromStartParam(p: string | null): Route</code> (<code>item_12</code> → <code>#/item/12</code>, мусор → <code>#/</code>); <code>i18n</code>: <code>t(key, params?)</code>, <code>detectLang(code?: string): Lang</code>, ручное переключение (сохраняется в prefs), строки лежат в <code>en.ts</code>/<code>ru.ts</code> как плоские объекты.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «наборы ключей <code>en</code> и <code>ru</code> совпадают» (и все <code>{param}</code> одинаковы); «<code>t</code> подставляет параметры и при отсутствии ключа возвращает сам ключ»; «<code>detectLang('ru')</code>=ru, <code>'uk'</code>/<code>undefined</code>=en»; «<code>api</code> добавляет заголовок и превращает 409 в <code>ApiError{code:'already_claimed'}</code>»; «<code>routeFromStartParam('item_12')</code>, <code>('item_abc')</code>, <code>(null)</code>»; «<code>prefs.set</code> не бросает, когда <code>localStorage</code> недоступен»; «<code>check-bundle-size</code> падает, если gzip всех JS &gt; 90 КБ» (проверяется после <code>npm run build</code>).</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать. Telegram SDK берётся из <code>@twa-dev/sdk</code> (в бандле). Тему подключить к <code>tokens.css</code> через <code>themeParams</code>.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS; <code>npm run build &amp;&amp; node scripts/check-bundle-size.mjs</code> выводит размер.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat(web): app shell, API client, router, i18n</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 16: Экраны гостя</h3>
+<p class="meta">Files: <code>src/web/pages/{Home,List,Item}.tsx</code>, <code>src/web/components/{ItemCard,CurrencyPicker,Price,ClaimButton}.tsx</code>; тесты <code>tests/web/guest.test.tsx</code> (Vitest + <code>@testing-library/preact</code> + jsdom)</p>
+<p class="meta"><strong>Consumes:</strong> <code>api</code>, <code>t</code>, <code>routeFromStartParam</code>, <code>convertMinor</code>/<code>formatMoney</code>, <code>ItemDto</code>. <strong>Produces:</strong> страницы <code>Home</code> (приветствие, карточки превью; отсчёт добавляется в Задаче 17), <code>List</code>, <code>Item</code>; <code>CurrencyPicker</code> запоминает выбор в <code>prefs</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты (<code>api</code> мокается): «карточка показывает исходную цену и «≈» цену в выбранной валюте»; «смена валюты пересчитывает и сохраняется в prefs»; «свободный подарок показывает «Забронировать», нажатие вызывает <code>POST …/claim</code> и вызывает <code>haptic</code>»; «чужая бронь показывает имя и не даёт кнопки снятия»; «своя бронь даёт «Снять бронь»»; «при 409 показывается сообщение и список обновляется»; «двойной клик отправляет один запрос (кнопка блокируется)»; «длинное имя гостя с <code>&lt;script&gt;</code> выводится текстом»; «пустой список показывает понятное состояние»; «нет сети → сообщение и кнопка повтора».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать в соответствии с утверждённым визуальным направлением (Задача 14).</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS; проверка размера бандла проходит.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat(web): guest screens</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 17: Экраны владельца (админка)</h3>
+<p class="meta">Files: <code>src/web/pages/admin/ItemForm.tsx</code>, <code>src/web/components/{OwnerBar,ImagePicker}.tsx</code>; тест <code>tests/web/admin.test.tsx</code></p>
+<p class="meta"><strong>Produces:</strong> <code>ItemForm</code> (создание и правка: название, описание, ссылка с кнопкой «Подтянуть» → <code>POST /api/link-preview</code>, автозаполнение полей и картинки, цена, валюта, загрузка файла, удаление с подтверждением); <code>OwnerBar</code> видна только при <code>viewer.isOwner</code> (из <code>/api/me</code>).</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «<code>OwnerBar</code> не рендерится у гостя и рендерится у владельца»; «страницы <code>#/admin/*</code> у гостя перенаправляют на главную»; ««Подтянуть» подставляет название, описание, цену и картинку из предпросмотра, не затирая уже введённое вручную без подтверждения»; «ошибка предпросмотра (<code>error:'blocked'</code>) показывает мягкое сообщение, форма остаётся рабочей»; «в карточках и списке у владельца нет ни имён, ни статусов брони»; «удаление спрашивает подтверждение»; «валидация: пустое название, цена без валюты».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать. Контроль доступа остаётся на сервере, клиентское скрытие только удобство.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat(web): owner admin screens</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<!-- ============================ M2 ============================ -->
+<h2>M2. Быстрые функции</h2>
+
+<div class="task">
+<h3>Задача 18: Обратный отсчёт до дня рождения (4)</h3>
+<p class="meta">Files: <code>src/server/http/routes/me.ts</code> (добавить <code>GET /api/home</code>), <code>src/web/pages/Home.tsx</code>, <code>src/web/components/Countdown.tsx</code>; тесты <code>tests/server/home.test.ts</code>, <code>tests/web/countdown.test.tsx</code></p>
+<p class="meta"><strong>Consumes:</strong> <code>getOpenRound</code>, <code>daysUntil</code>. <strong>Produces:</strong> <code>GET /api/home</code> → <code>{ date: string; daysLeft: number }</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «за 10 дней → <code>daysLeft:10</code>»; «в день рождения → 0 и клиент показывает «Сегодня!»»; «на следующие сутки открытый раунд ещё прежний, пока владелец не подвёл итоги → <code>daysLeft</code> = 0, а не отрицательное» (держать на 0 до закрытия раунда); «склонение: 1 день, 2 дня, 5 дней (ru), 1 day / 2 days (en)».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: birthday countdown</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 19: Приоритеты и заметки (3)</h3>
+<p class="meta">Files: <code>src/server/domain/items.ts</code>, <code>src/server/domain/views.ts</code>, <code>src/web/components/PriorityBadge.tsx</code>, правки <code>ItemForm</code>, <code>List</code>; тесты <code>tests/server/priority.test.ts</code>, <code>tests/web/priority.test.tsx</code></p>
+<p class="meta"><strong>Produces:</strong> <code>ItemInput</code> получает <code>priority?: Priority</code> (по умолчанию <code>want</code>) и <code>note?: string</code> (≤500); сортировка списка: <code>must</code> → <code>want</code> → <code>nice</code>, внутри по <code>created_at</code> убыв.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «неизвестный приоритет → 400»; «заметка длиннее 500 → 400»; «сортировка по приоритету, затем по дате»; «сортировка одинакова у владельца и гостя и не зависит от броней»; «бейдж и заметка отображаются в карточке; заметка с переводом строки выводится текстом»; «форма сохраняет приоритет».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: priorities and notes</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 20: Скрытые черновики (10) и планировщик курсов</h3>
+<p class="meta">Files: <code>src/server/domain/items.ts</code>, <code>src/server/domain/views.ts</code>, <code>src/server/services/scheduler.ts</code>, <code>src/server/index.ts</code>, правки <code>ItemForm</code>/<code>List</code>; тесты <code>tests/server/drafts.test.ts</code>, <code>tests/server/scheduler.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>ItemInput.status?: 'draft' | 'published'</code> (по умолчанию <code>published</code>); <code>POST /api/items/:id/publish</code> (только владелец); <code>class Scheduler { constructor(clock: Clock, timezone: string); every(ms: number, fn): void; dailyAt(hour: number, fn): void; stop(): void }</code> (таймеры внедряемые для тестов); при старте <code>RatesService.refresh()</code> и далее каждые 12 ч.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «черновик не попадает в <code>GET /api/items</code> гостя»; «<code>GET /api/items/:id</code> черновика гостем → 404 (как у несуществующего, тело идентично)»; «бронь черновика → 404»; «владелец видит черновик с пометкой»; «<code>publish</code> делает подарок видимым, повторный вызов безвреден»; «гость → 403 на <code>publish</code>»; «<code>dailyAt(3)</code> срабатывает в 03:00 по <code>TIMEZONE</code>, не по UTC, и перепланируется»; «<code>stop()</code> гасит таймеры».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: hidden drafts and scheduler</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 21: Ссылка на подарок и «Поделиться» (6)</h3>
+<p class="meta">Files: <code>src/server/services/deeplink.ts</code>, <code>src/web/components/ShareButton.tsx</code>, правки <code>app.tsx</code>/<code>Item.tsx</code>; тесты <code>tests/server/deeplink.test.ts</code>, <code>tests/web/share.test.tsx</code></p>
+<p class="meta"><strong>Produces:</strong> <code>buildItemLink(cfg: { botUsername?: string; appShortName?: string }, id: number): string | null</code> (с <code>appShortName</code>: <code>https://t.me/&lt;bot&gt;/&lt;app&gt;?startapp=item_&lt;id&gt;</code>; без: <code>https://t.me/&lt;bot&gt;?startapp=item_&lt;id&gt;</code>; без <code>botUsername</code> → <code>null</code>); клиент: <code>ShareButton</code> вызывает <code>WebApp.openTelegramLink('https://t.me/share/url?url=…&amp;text=…')</code>, на старте приложение открывает карточку по <code>startParam()</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «обе формы ссылки и <code>null</code>»; «<code>startapp=item_7</code> открывает карточку 7»; «несуществующий или черновой id: главная и мягкое уведомление, а не пустой экран»; «ссылка на подарок не раскрывает, забронирован ли он (текст шеринга — только название)»; «название с эмодзи и <code>&amp;</code> корректно кодируется в URL».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: item deep links and share</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<!-- ============================ M3 ============================ -->
+<h2>M3. Средние функции</h2>
+
+<div class="task">
+<h3>Задача 22: Ночной бэкап (7)</h3>
+<p class="meta">Files: <code>src/server/services/backup.ts</code>, <code>src/server/bot/bot.ts</code> (команда <code>/backup</code>), <code>src/server/index.ts</code>; тест <code>tests/server/backup.test.ts</code></p>
+<p class="meta"><strong>Consumes:</strong> <code>Scheduler.dailyAt</code>, <code>Notifier.sendDocument</code>. <strong>Produces:</strong> <code>createBackup(db, dir: string, now: Date): string</code> (файл <code>wishlist-YYYYMMDD-HHmmss.sqlite</code> через <code>VACUUM INTO</code>); <code>pruneBackups(dir: string, keep: number): string[]</code> (возвращает удалённые); <code>runBackup(deps): Promise&lt;void&gt;</code> (создать, обрезать, отправить владельцу); ежедневно в <code>BACKUP_HOUR</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «бэкап открывается как SQLite и содержит те же числа строк в <code>items</code>, <code>claims</code>»; «создание бэкапа во время записи не падает и даёт консистентный файл»; «<code>pruneBackups</code> оставляет <code>keep</code> новейших, чужие файлы не трогает»; «<code>runBackup</code> отправляет документ владельцу, при <code>false</code> от нотификатора пишет предупреждение в лог, но не бросает»; «<code>/backup</code> от владельца присылает файл, от другого пользователя — ничего (молчание, а не отказ, чтобы не раскрывать команду)»; «<code>VACUUM INTO</code> не перезаписывает существующий файл (имя уникально по времени)».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать. Каталог бэкапов: <code>$DATA_DIR/backups</code>. Описать в <code>docs/OPERATIONS.md</code> восстановление и то, что файл содержит брони (см. спецификацию, раздел 7).</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: nightly backup to owner</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 23: Итоги раунда, серверная часть (1)</h3>
+<p class="meta">Files: <code>src/server/domain/reveal.ts</code>, <code>src/server/http/routes/rounds.ts</code>; тест <code>tests/server/reveal.test.ts</code></p>
+<p class="meta"><strong>Consumes:</strong> <code>getOpenRound</code>, <code>nextBirthday</code>, <code>Notifier</code>, <code>escapeHtml</code>. <strong>Produces:</strong> <code>previewReveal(db, config, now): { round: Round; items: Array&lt;{ item: ItemDto; claims: ClaimDto[] }&gt; }</code> (только если сегодня ≥ даты раунда по <code>TIMEZONE</code>, иначе <code>HttpError(409,'too_early')</code>); <code>closeRound(deps, receivedItemIds: number[]): Promise&lt;{ nextRound: Round; thanked: number }&gt;</code> (атомарно: выбранные → <code>received</code>, раунд → <code>revealed</code>, создаётся следующий открытый раунд на ближайший день рождения после текущей даты; затем благодарности дарителям); маршруты <code>GET /api/rounds/current/reveal</code>, <code>POST /api/rounds/current/close {receivedItemIds}</code> — только владелец; <code>GET /api/items?status=received</code> для владельца (архив).</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «до даты → 409 <code>too_early</code> (граница: 23:59 накануне и 00:00 в день рождения по <code>Asia/Jerusalem</code>)»; «после даты <code>reveal</code> возвращает дарителей по подаркам, включая вкладчиков складчины (Задача 26)»; «<code>close</code> помечает выбранные <code>received</code>, остальные остаются <code>published</code> без активных броней в новом раунде»; «новый раунд открыт, старый <code>revealed</code>, <code>date</code> нового = следующий год»; «повторный <code>close</code> того же раунда → 409 <code>already_closed</code> и ничего не меняет»; «благодарность уходит каждому дарителю полученных подарков один раз, имя подарка экранировано, язык текста берётся из <code>claims.lang</code>»; «<code>send</code> вернул false (бот заблокирован) — <code>close</code> всё равно успешен, <code>thanked</code> считает только доставленные»; «<code>receivedItemIds</code> с id из чужого раунда или не забронированного подарка → 400»; «гость → 403 на оба маршрута»; «полученные подарки исчезают из гостевого списка». Для хранения языка добавить колонку <code>claims.lang</code> миграцией <code>003_claim_lang.sql</code> и заполнять её в Задаче 9 (поправить <code>claimFull</code>).</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать. Для <code>closeRound</code> использовать одну транзакцию БД; уведомления отправлять после коммита.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS, включая все предыдущие наборы.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: round close, reveal and thanks</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 24: Итоги раунда, экран владельца</h3>
+<p class="meta">Files: <code>src/web/pages/admin/Reveal.tsx</code>, правки <code>OwnerBar</code>; тест <code>tests/web/reveal.test.tsx</code></p>
+<p class="meta"><strong>Consumes:</strong> <code>GET /api/rounds/current/reveal</code>, <code>POST …/close</code>.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «кнопка «Подвести итоги» видна владельцу только когда сервер не вернул <code>too_early</code>; до даты показан обратный отсчёт»; «экран показывает дарителей по подаркам и чекбокс «получено» для каждого забронированного»; «подтверждение перед закрытием с числом отмеченных»; «после успеха показывается сводка и переход на главную нового раунда»; «двойное нажатие шлёт один запрос».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat(web): reveal screen</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<!-- ============================ M4 ============================ -->
+<h2>M4. Складчина</h2>
+
+<div class="task">
+<h3>Задача 25: Складчина, серверная часть (2)</h3>
+<p class="meta">Files: <code>src/server/domain/claims.ts</code>, <code>src/server/domain/items.ts</code>, <code>src/server/domain/views.ts</code>, <code>src/server/http/routes/claims.ts</code>; тест <code>tests/server/funding.test.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>ItemInput.groupFunding?: boolean</code> (требует цену, иначе 400 <code>price_required</code>; нельзя включить при существующей брони «целиком»); <code>contribute(db, itemId, viewer: Viewer, amountMinor: number, now: Date): ClaimRow</code> (создаёт или обновляет свой взнос) и <code>withdrawContribution(db, itemId, viewer): void</code>; <code>POST /api/items/:id/contribute {amountMinor}</code>, <code>DELETE /api/items/:id/contribute</code>; в <code>ItemDto</code> для гостей <code>funding</code> = <code>{ raisedMinor, remainingMinor }</code>. Ошибки: <code>(409,'over_funded')</code> если сумма взносов превысит цену, <code>(409,'not_group_item')</code>, <code>(400,'invalid_amount')</code>, <code>(409,'already_claimed')</code> если подарок забронирован целиком.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «взнос в рамках остатка принимается, <code>raised</code> растёт»; «взнос больше остатка → 409 <code>over_funded</code>, ничего не записано»; «<code>amountMinor</code> 0, отрицательный, дробный, не число → 400»; «гость меняет свой взнос: сумма пересчитывается, лимит проверяется с учётом его прежнего взноса»; «последовательно два взноса, вместе превышающие цену, — второй отвергнут» (в одной транзакции каждый); «бронь «целиком» на подарок со взносами → 409, взнос на подарок с бронью «целиком» → 409»; «подарок без <code>groupFunding</code> → 409 <code>not_group_item</code>»; «<b>для владельца нет ни <code>funding</code>, ни имён вкладчиков ни в одном ответе</b> (добавить подарок со складчиной в тест инварианта Задачи 10)»; «снять взнос может только автор»; «владелец не может вносить → 403»; «сумма хранится в валюте подарка, независимо от валюты просмотра».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать; лимит проверяется внутри <code>BEGIN IMMEDIATE</code> агрегатом <code>SUM(amount_minor)</code> по раунду и подарку.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS, наборы Задач 9, 10, 23 тоже.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat: group gift funding</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 26: Складчина, интерфейс и итоги</h3>
+<p class="meta">Files: <code>src/web/components/{FundingBar,ContributeForm}.tsx</code>, правки <code>Item.tsx</code>, <code>ItemForm.tsx</code>, <code>Reveal.tsx</code>, <code>src/server/domain/reveal.ts</code>; тесты <code>tests/web/funding.test.tsx</code>, дополнить <code>tests/server/reveal.test.ts</code></p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Тесты: «прогресс-бар показывает собрано/остаток в выбранной валюте, исходная сумма в валюте подарка видна тоже»; «поле суммы вводится в валюте подарка; подсказка «≈» в выбранной валюте»; «превышение остатка блокирует кнопку до отправки»; «ответ 409 <code>over_funded</code> обновляет остаток и показывает сообщение»; «список вкладчиков виден гостям, у владельца нет ни полосы, ни списка»; «переключатель «складчина» в форме владельца требует цену»; «на экране итогов подарок со складчиной показывает вкладчиков и сумму; <code>closeRound</code> благодарит каждого вкладчика полученных подарков; взносы в неполученные подарки не переходят в новый раунд».</label></li>
+<li><label><input type="checkbox"> Шаг 2. Запуск. Ожидается: FAIL.</label></li>
+<li><label><input type="checkbox"> Шаг 3. Реализовать.</label></li>
+<li><label><input type="checkbox"> Шаг 4. PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>feat(web): group funding UI and reveal support</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<!-- ============================ M5 ============================ -->
+<h2>M5. Релиз</h2>
+
+<div class="task">
+<h3>Задача 27: E2E-сценарии</h3>
+<p class="meta">Files: <code>playwright.config.ts</code>, <code>tests/e2e/journeys.spec.ts</code>, <code>tests/e2e/server.ts</code></p>
+<p class="meta"><strong>Produces:</strong> <code>tests/e2e/server.ts</code> поднимает приложение программно с тестовым токеном, in-memory БД, управляемыми часами и фальшивым нотификатором; страница открывается с <code>#tgWebAppData=&lt;подписанный initData&gt;&amp;tgWebAppVersion=8.0</code>, как делает Telegram.</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Сценарии: «владелец создаёт подарок со ссылкой (предпросмотр на локальном тестовом сервере), загружает картинку, публикует»; «гость бронирует, второй гость видит имя первого, владелец открывает тот же подарок и не видит брони (по DOM и по сетевым ответам)»; «два гостя одновременно жмут «Забронировать»: победитель один»; «складчина: два вкладчика, третий превысил остаток и видит сообщение»; «переключение ru/en»; «ссылка <code>startapp=item_N</code> открывает карточку»; «часы переведены на день рождения: владелец подводит итоги, даритель получает благодарность, список обновился, раунд новый»; «размер переданного JS в пределах бюджета».</label></li>
+<li><label><input type="checkbox"> Шаг 2. <code>npx playwright test</code> до реализации недостающего. Ожидается: FAIL по конкретным найденным дефектам (если все зелёные, проверить, что тесты вообще проверяют отсутствие брони у владельца, подменив код и убедившись в падении).</label></li>
+<li><label><input type="checkbox"> Шаг 3. Исправить найденные дефекты минимальными правками (каждое с юнит-тестом, RED-GREEN).</label></li>
+<li><label><input type="checkbox"> Шаг 4. <code>npm test &amp;&amp; npx playwright test</code>. Ожидается: PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Коммит <code>test: end-to-end journeys</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task">
+<h3>Задача 28: Документация в стиле Iris</h3>
+<p class="meta">Files: <code>README.md</code>, <code>SECURITY.md</code>, <code>CONTRIBUTING.md</code>, <code>NOTICE</code>, <code>docs/{INSTALL,ARCHITECTURE,OPERATIONS}.md</code>, <code>assets/banner.svg</code>, <code>scripts/{check-repository-safety,validate-docs}.mjs</code>, дополнить <code>Makefile</code> (<code>safety</code>, <code>docs</code>) и CI</p>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Написать проверки раньше документов. <code>validate-docs.mjs</code>: все относительные ссылки и якоря в <code>README.md</code> и <code>docs/*.md</code> разрешаются, у README есть разделы Overview, Features, Quick start, Security model, Credits and license. <code>check-repository-safety.mjs</code>: ни в одном отслеживаемом файле нет токена бота (<code>\d{8,10}:[A-Za-z0-9_-]{35}</code>), <code>.env</code> не отслеживается, нет личных путей <code>/home/</code>. Запустить на пустом проекте. Ожидается: FAIL (документов нет).</label></li>
+<li><label><input type="checkbox"> Шаг 2. README на английском по образцу <code>/home/yinon/Projects/iris/README.md</code>: центрированный баннер, ряд бейджей (CI, license Apache-2.0, Node 22, Docker, Telegram Mini App), однострочное позиционирование, Overview, таблица Features (раньше всего: приватность сюрприза, складчина, ссылки и картинки, валюты, ru/en, раунды по годам), блок «What it looks like» (текстовый эскиз), Quick start (`git clone`, `make init`, заполнить `.env`, `make up`), Security model (честная оговорка про владельца сервера), Credits and license (атрибуция источника курсов). <code>INSTALL.md</code>: создание бота в BotFather, Main Mini App или direct link (<code>APP_SHORT_NAME</code>), Funnel на Mac mini (<code>tailscale funnel --bg 8080</code>, проверка <code>tailscale funnel status</code>), <code>.env</code>, первый запуск. <code>OPERATIONS.md</code>: обновление, логи, восстановление из бэкапа, ротация токена. <code>ARCHITECTURE.md</code>: схема и инварианты. Баннер <code>banner.svg</code> в стиле Iris и утверждённом визуальном направлении.</label></li>
+<li><label><input type="checkbox"> Шаг 3. <code>make check</code>. Ожидается: PASS.</label></li>
+<li><label><input type="checkbox"> Шаг 4. Коммит <code>docs: README, install guide, security and contributing</code> + <code>CHANGELOG</code>.</label></li>
+</ul>
+</div>
+
+<div class="task gate">
+<h3>Задача 29: Развёртывание на Mac mini (интерактивно, с владельцем)</h3>
+<ul class="steps">
+<li><label><input type="checkbox"> Шаг 1. Попросить владельца открыть мастер-соединение: <code>sshx mini</code> и коснуться YubiKey. Проверка: <code>ssh -O check mini-agent</code>. При <code>Permission denied</code> не обходить, снова попросить владельца. Подключаться только как <code>ssh mini-agent '&lt;команда&gt;'</code>.</label></li>
+<li><label><input type="checkbox"> Шаг 2. Попросить владельца создать бота в BotFather и передать токен безопасным способом (вставить в <code>.env</code> на mini самостоятельно, токен не попадает в чат и в git).</label></li>
+<li><label><input type="checkbox"> Шаг 3. Передать код на mini (<code>git clone</code> или <code>rsync</code> из репозитория), <code>make init</code>, заполнить <code>.env</code>, <code>make up</code>. Проверить <code>docker compose ps</code> и <code>curl -fs localhost:8080/healthz</code> на mini.</label></li>
+<li><label><input type="checkbox"> Шаг 4. Включить Funnel: <code>tailscale funnel --bg 8080</code>. Проверка с другого устройства вне tailnet (телефон по мобильной сети): <code>https://&lt;mini&gt;.&lt;tailnet&gt;.ts.net/healthz</code> отвечает 200. Прописать этот адрес в <code>PUBLIC_URL</code>, перезапустить.</label></li>
+<li><label><input type="checkbox"> Шаг 5. Привязать mini-app в BotFather. Владелец вручную проходит сценарий: <code>/start</code> → открыть → создать подарок со ссылкой и картинкой; с другого аккаунта забронировать; проверить, что у владельца брони не видно; проверить бэкап командой <code>/backup</code>.</label></li>
+<li><label><input type="checkbox"> Шаг 6. Зафиксировать результат в <code>CHANGELOG</code> как релиз <code>0.1.0</code> (перенести <code>Unreleased</code>), коммит <code>chore: release 0.1.0</code>. Публикацию на GitHub (создание репозитория, push) предложить владельцу и сделать только по его явному разрешению.</label></li>
+</ul>
+</div>
+
+<h2>Самопроверка плана</h2>
+<ul>
+  <li><strong>Покрытие спецификации:</strong> цели и анти-цели (Задачи 10, 15, 28); среда и Funnel (4, 29); конфиг (1); авторизация (3); модель данных и раунды (2, 6); видимость (10, 25); картинки (12); ссылки (11); валюты (5, 7); i18n (15); фичи (1) (23, 24), (2) (25, 26), (3) (19), (4) (18), (6) (21), (7) (22), (10) (20); тестовая стратегия (во всех задачах, 27); релиз (28, 29).</li>
+  <li><strong>Согласованность имён:</strong> <code>toItemDto</code> — единственная точка сборки ответов; <code>Notifier</code>, <code>Scheduler</code>, <code>RatesService</code>, <code>getOpenRound</code> определены раньше использования. Колонка <code>claims.lang</code> появляется в Задаче 23 вместе с правкой Задачи 9.</li>
+  <li><strong>Допущения, которые я ввёл сам:</strong> провайдер курсов <code>open.er-api.com</code> (с запасным вариантом); <code>TIMEZONE</code> и <code>BACKUP_HOUR</code> в конфиге; <code>/healthz</code> и <code>/images/:file</code> доступны без авторизации; черновик гостю отдаёт 404, неотличимый от несуществующего.</li>
+</ul>
+
+</main>
+</body>
+</html>
