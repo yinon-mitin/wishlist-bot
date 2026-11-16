@@ -16,6 +16,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: node scripts/validate-docs.mjs
+      - run: node scripts/check-repository-safety.mjs
       - run: npm test
       - run: npm run build
       - name: Browser journeys

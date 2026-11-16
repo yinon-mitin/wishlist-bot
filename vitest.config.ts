@@ -5,6 +5,7 @@ export default defineConfig({
     testTimeout: 15000,
     projects: [
       { test: { name: 'server', environment: 'node', include: ['tests/server/**/*.test.ts'] } },
+      { test: { name: 'scripts', environment: 'node', include: ['tests/scripts/**/*.test.ts'] } },
       { test: { name: 'web', environment: 'jsdom', include: ['tests/web/**/*.test.{ts,tsx}'] } },
     ],
   },

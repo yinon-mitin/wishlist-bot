@@ -1,0 +1,11 @@
+Wishlist — a birthday wishlist that keeps the surprise
+https://github.com/yinon-mitin/wishlist-bot
+Copyright 2026 Yinon Mitin
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Exchange rates are provided by the Exchange Rate API (open.er-api.com):
+https://www.exchangerate-api.com
+
+Third-party libraries are used under their own licenses (see package-lock.json), among them
+Hono, grammY, better-sqlite3, sharp, cheerio, undici, zod, Preact, Vite and the Telegram Web Apps SDK.

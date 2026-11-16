@@ -10,6 +10,8 @@ init:
 
 check:
 	@npm run --silent typecheck
+	@node scripts/validate-docs.mjs
+	@node scripts/check-repository-safety.mjs
 	@$(COMPOSE) config --quiet
 
 build:

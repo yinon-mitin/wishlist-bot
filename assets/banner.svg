@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">Wishlist — a birthday wishlist that keeps the surprise</title>
+  <desc id="desc">A self-hosted Telegram mini-app: friends reserve gifts or chip in together, and the birthday person sees nothing until the reveal.</desc>
+  <defs>
+    <linearGradient id="accent" x1="80" y1="55" x2="1060" y2="320" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5BC0F8"/>
+      <stop offset=".55" stop-color="#3390EC"/>
+      <stop offset="1" stop-color="#6C5CE7"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1200" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#101A2C"/>
+      <stop offset="1" stop-color="#090E1A"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#02040A" flood-opacity=".5"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="360" rx="32" fill="url(#panel)"/>
+  <path d="M0 298C234 250 365 337 585 300c246-42 375-157 615-104v164H0Z" fill="#121F35"/>
+  <path d="M0 315c229-41 374 26 587-8 251-40 382-139 613-93" fill="none" stroke="url(#accent)" stroke-opacity=".26" stroke-width="2"/>
+  <g transform="translate(78 62) scale(.5)" filter="url(#shadow)">
+    <circle cx="256" cy="256" r="188" fill="#0B1220" stroke="#263A59" stroke-width="3"/>
+    <rect x="136" y="224" width="240" height="152" rx="18" fill="#F4F8FF"/>
+    <rect x="120" y="190" width="272" height="56" rx="16" fill="#DCE8FA"/>
+    <rect x="236" y="190" width="40" height="186" fill="url(#accent)"/>
+    <path d="M256 190c-18-46-78-52-84-18-5 28 40 30 84 18Zm0 0c18-46 78-52 84-18 5 28-40 30-84 18Z" fill="none" stroke="url(#accent)" stroke-width="16" stroke-linejoin="round"/>
+  </g>
+  <g fill="#F5F8FF" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+    <text x="375" y="128" font-size="76" font-weight="760" letter-spacing="-2">Wishlist</text>
+    <text x="378" y="176" fill="#D6DFEC" font-size="25" font-weight="600">A birthday wishlist that keeps the surprise</text>
+    <text x="378" y="220" fill="#8FA3BD" font-size="20" font-weight="450">Friends reserve gifts or chip in together in a Telegram mini-app. You see nothing until the reveal.</text>
+  </g>
+  <g font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" font-weight="600" fill="#C9D6EA">
+    <rect x="378" y="246" width="150" height="32" rx="16" fill="#142239" stroke="#5BC0F8" stroke-opacity=".55"/>
+    <text x="453" y="267" text-anchor="middle">owner stays blind</text>
+    <rect x="538" y="246" width="124" height="32" rx="16" fill="#142239" stroke="#3390EC" stroke-opacity=".55"/>
+    <text x="600" y="267" text-anchor="middle">group gifts</text>
+    <rect x="672" y="246" width="146" height="32" rx="16" fill="#142239" stroke="#6C5CE7" stroke-opacity=".55"/>
+    <text x="745" y="267" text-anchor="middle">self-hosted</text>
+  </g>
+</svg>

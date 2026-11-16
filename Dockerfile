@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 make g+
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY tsconfig.json vite.config.ts index.html ./
+COPY scripts ./scripts
 COPY src ./src
 COPY public ./public
 RUN npm run build && npm prune --omit=dev
