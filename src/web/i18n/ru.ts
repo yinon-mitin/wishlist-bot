@@ -12,6 +12,7 @@ export const ru: Shape = {
   'common.delete': 'Удалить',
   'common.loading': 'Загрузка…',
   'common.retry': 'Повторить',
+  'common.language': 'Язык',
   'common.share': 'Поделиться',
 
   'days': ['{n} день', '{n} дня', '{n} дней'],

@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 COMPOSE ?= docker compose
 
-.PHONY: init check build test up down restart ps logs
+.PHONY: init check build test e2e up down restart ps logs
 
 init:
 	@test -f .env || cp .env.example .env
@@ -17,6 +17,9 @@ build:
 
 test: check
 	@npm test --silent
+
+e2e:
+	@npm run --silent test:e2e
 
 up:
 	@$(COMPOSE) up -d --build

@@ -8,6 +8,7 @@ export const en = {
   'common.delete': 'Delete',
   'common.loading': 'Loading…',
   'common.retry': 'Try again',
+  'common.language': 'Language',
   'common.share': 'Share',
 
   'days': ['{n} day', '{n} days'],

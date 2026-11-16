@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRoute, routeFromStartParam } from '../../src/web/router';
+import { initialHash, parseRoute, routeFromStartParam } from '../../src/web/router';
 
 describe('parseRoute', () => {
   it.each([
@@ -20,4 +20,13 @@ describe('parseRoute', () => {
 describe('routeFromStartParam', () => {
   it('opens a gift from item_12', () => expect(routeFromStartParam('item_12')).toBe('#/item/12'));
   it.each(['item_abc', '', null, 'x'])('goes home for %s', (p) => expect(routeFromStartParam(p)).toBe('#/'));
+});
+
+describe('initialHash (Telegram launches with #tgWebAppData=… in the hash)', () => {
+  it('opens the gift from start_param even though Telegram has already filled the hash', () => {
+    expect(initialHash('#tgWebAppData=query_id%3DAA&tgWebAppVersion=8.0', 'item_5')).toBe('#/item/5');
+  });
+  it('opens the gift when the hash is empty', () => expect(initialHash('', 'item_5')).toBe('#/item/5'));
+  it('goes home when there is no start_param', () => expect(initialHash('#tgWebAppData=x', null)).toBe('#/'));
+  it('keeps an app route that is already in the hash (page reload)', () => expect(initialHash('#/items', 'item_5')).toBeNull());
 });

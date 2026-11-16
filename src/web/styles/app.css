@@ -102,3 +102,5 @@ input:not([type=checkbox]):not([type=file]), textarea, select { width: 100%; fon
 .reveal-row { padding: 12px 0; border-bottom: .5px solid var(--sep); }
 .reveal-row .check { margin-top: 8px; }
 .actions.static.pad { padding: var(--pad); }
+
+.lang { justify-self: end; border: 0; background: var(--bg2); color: var(--tx); border-radius: 99px; padding: 3px 10px; font-size: 12px; cursor: pointer; }

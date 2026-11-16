@@ -54,18 +54,19 @@ export function Routes() {
 
 export function App() {
   const boot = useAsync(async () => {
-    const [me, rates, saved] = await Promise.all([
+    const [me, rates, saved, savedLang] = await Promise.all([
       api<{ viewer: Viewer; config: AppConfig }>('/api/me'),
       api<Rates>('/api/rates').catch(() => null),
       prefs.get('currency'),
+      prefs.get('lang'),
     ]);
-    return { ...me, rates, saved };
+    return { ...me, rates, saved, savedLang };
   }, []);
 
   if (boot.error && !boot.data) return <div class="app"><ErrorState error={boot.error} onRetry={boot.reload} /></div>;
   if (!boot.data) return <div class="app"><Loading /></div>;
-  const { viewer, config, rates, saved } = boot.data;
-  setLang(viewer.lang);
+  const { viewer, config, rates, saved, savedLang } = boot.data;
+  setLang(savedLang === 'ru' || savedLang === 'en' ? savedLang : viewer.lang);
   const initial = saved && config.currencies.includes(saved) ? saved : config.defaultCurrency;
   return (
     <AppProvider viewer={viewer} config={config} rates={rates} initialCurrency={initial}>

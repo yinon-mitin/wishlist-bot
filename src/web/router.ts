@@ -48,3 +48,11 @@ export const href = {
 export const navigate = (hash: string): void => {
   location.hash = hash;
 };
+
+/**
+ * The hash to start on. Telegram opens the app with `#tgWebAppData=…` already in the hash, so "empty hash" is
+ * not the test: only an app route (`#/…`) means the user is already somewhere.
+ */
+export function initialHash(currentHash: string, startParam: string | null | undefined): string | null {
+  return currentHash.startsWith('#/') ? null : routeFromStartParam(startParam);
+}

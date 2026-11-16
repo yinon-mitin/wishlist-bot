@@ -32,3 +32,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Owner admin screens: gift form with link fetch (never overwrites typed fields without confirmation), photo upload, delete with confirmation; owner-only shortcuts; guests are redirected away from admin routes.
 - UI for countdown (plural-aware, 'Today is the day!'), priority badge and notes, hidden drafts with Publish, gift deep links and Telegram share, soft notice for missing gifts.
 - Reveal screen for the owner (givers per gift, Received checkboxes, confirmation, summary, countdown before the birthday) and group-funding UI (progress bar in the viewer's currency, contributors, chip in / take back, over-funding protection).
+- Language switch (RU/EN) remembered per viewer; browser end-to-end journeys (Playwright) on the production bundle: owner creates a gift from a link with its photo, reservations and race, group funding, language, deep links, round close with thanks, owner blindness in the DOM and on the wire.
+
+### Fixed
+- The mini-app now opens the gift from a `startapp` link: Telegram launches with `#tgWebAppData=…` already in the URL hash, which the router mistook for "already somewhere".
+- Telegram's script was dropped from the production bundle (and its default export mis-unwrapped), so requests carried no credentials; the client now reads `window.Telegram.WebApp` directly and keeps the import alive.

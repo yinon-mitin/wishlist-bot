@@ -15,7 +15,8 @@
     "build:web": "vite build && node scripts/check-bundle-size.mjs dist/web 90",
     "start": "node dist/server/index.js",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.8",

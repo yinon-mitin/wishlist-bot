@@ -1,6 +1,7 @@
-import { createContext, type ComponentChildren } from 'preact';
+import { Fragment, createContext, type ComponentChildren } from 'preact';
 import { useCallback, useContext, useState } from 'preact/hooks';
-import type { Rates, Viewer } from '../shared/types';
+import type { Lang, Rates, Viewer } from '../shared/types';
+import { getLang, setLang } from './i18n';
 import { prefs } from './tg';
 
 export interface AppConfig {
@@ -17,6 +18,8 @@ export interface AppState {
   rates: Rates | null;
   currency: string;
   setCurrency: (code: string) => void;
+  lang: Lang;
+  switchLang: () => void;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -42,5 +45,17 @@ export function AppProvider({ viewer, config, rates, initialCurrency, children }
     setCurrencyState(code);
     void prefs.set('currency', code);
   }, []);
-  return <Ctx.Provider value={{ viewer, config, rates, currency, setCurrency }}>{children}</Ctx.Provider>;
+  const [lang, setLangState] = useState<Lang>(getLang());
+  const switchLang = useCallback(() => {
+    const next: Lang = getLang() === 'ru' ? 'en' : 'ru';
+    setLang(next);
+    setLangState(next);
+    void prefs.set('lang', next);
+  }, []);
+  // Changing the language remounts the screens so every string is looked up again.
+  return (
+    <Ctx.Provider value={{ viewer, config, rates, currency, setCurrency, lang, switchLang }}>
+      <Fragment key={lang}>{children}</Fragment>
+    </Ctx.Provider>
+  );
 }

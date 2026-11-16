@@ -1,13 +1,23 @@
 import type { ComponentChildren } from 'preact';
 import { ApiError } from '../api';
 import { t } from '../i18n';
+import { useApp } from '../state';
+
+function LangSwitch() {
+  const { lang, switchLang } = useApp();
+  return (
+    <button type="button" class="lang" aria-label={t('common.language')} onClick={switchLang}>
+      {lang === 'ru' ? 'EN' : 'RU'}
+    </button>
+  );
+}
 
 export function Bar({ title, back }: { title: string; back?: string }) {
   return (
     <header class="bar">
       {back ? <a class="bar-link" href={back}>{t('common.back')}</a> : <span />}
       <h1>{title}</h1>
-      <span />
+      <LangSwitch />
     </header>
   );
 }
