@@ -14,3 +14,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Birthday rounds: time-zone-aware next-birthday and day-count helpers (02-29 handled), one open round at all times.
 - Cached currency rates from open.er-api.com (RUB and ILS included) with DB-backed cache, failure fallback and GET /api/rates.
 - Owner item management API (create, update, delete) with strict validation; deleting a reserved gift notifies the people who reserved it.
+- Atomic, idempotent whole-gift reservations: one winner among competing guests, only the author can release, the owner cannot reserve.
