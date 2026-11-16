@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { claimFull, claimsByItem, releaseClaim } from '../../domain/claims';
-import { createItem, deleteItem, getItem, updateItem, type ItemInput } from '../../domain/items';
+import { ITEM_ORDER, createItem, deleteItem, getItem, updateItem, type ItemInput } from '../../domain/items';
 import { toItemDto } from '../../domain/views';
 import type { ClaimRow, ItemRow } from '../../domain/types';
 import { getOpenRound } from '../../domain/rounds';
@@ -34,8 +34,10 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
     url: httpUrl.nullable(),
     priceMinor: z.number().int().positive().nullable(),
     currency: currency.nullable(),
+    priority: z.enum(['must', 'want', 'nice']),
+    note: z.string().max(500),
   };
-  const createSchema = z.object({ ...fields, description: fields.description.optional(), url: fields.url.optional(), priceMinor: fields.priceMinor.optional(), currency: fields.currency.optional() }).strict();
+  const createSchema = z.object({ ...fields, description: fields.description.optional(), url: fields.url.optional(), priceMinor: fields.priceMinor.optional(), currency: fields.currency.optional(), priority: fields.priority.optional(), note: fields.note.optional() }).strict();
   const patchSchema = z.object(fields).partial().strict();
 
   async function parseBody<T>(c: { req: { json(): Promise<unknown> } }, schema: z.ZodType<T>): Promise<T> {
@@ -72,7 +74,7 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
   r.get('/items', (c) => {
     const viewer = c.get('viewer');
     const statuses = viewer.isOwner ? "('draft', 'published')" : "('published')";
-    const rows = db.prepare(`SELECT * FROM items WHERE status IN ${statuses} ORDER BY created_at DESC, id DESC`).all() as ItemRow[];
+    const rows = db.prepare(`SELECT * FROM items WHERE status IN ${statuses} ORDER BY ${ITEM_ORDER}`).all() as ItemRow[];
     const byItem = viewer.isOwner ? new Map<number, ClaimRow[]>() : claimsByItem(db, getOpenRound(db).id);
     return c.json(rows.map((row) => toItemDto(row, byItem.get(row.id) ?? [], viewer, config)));
   });

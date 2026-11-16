@@ -20,3 +20,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Image upload and import by URL: format sniffing, EXIF stripped, WebP at most 1200px, content-hash names, public immutable serving, unused files garbage-collected.
 - Telegram bot: localized /start and /help with a button that opens the mini-app, menu button setup, and a notifier that never throws on blocked users.
 - GET /api/home with the days left until the open round's birthday (time-zone aware, never negative).
+- Gift priority (must, want, nice) and free-form notes; lists sort by priority then newest.
