@@ -1,0 +1,27 @@
+/*
+ * Visual direction A, "native Telegram" (chosen by the owner on 2026-11-16).
+ * Colours come from the Telegram theme (--tg-theme-*, set by the Telegram WebApp SDK) so light and dark
+ * themes work without extra code; the fallbacks below are Telegram's light theme.
+ * Typography is the system font. No web fonts, no external requests.
+ */
+:root {
+  --bg: var(--tg-theme-bg-color, #ffffff);
+  --bg2: var(--tg-theme-secondary-bg-color, #f1f1f5);
+  --tx: var(--tg-theme-text-color, #000000);
+  --hint: var(--tg-theme-hint-color, #8e8e93);
+  --ac: var(--tg-theme-button-color, #3390ec);
+  --ac-tx: var(--tg-theme-button-text-color, #ffffff);
+  --link: var(--tg-theme-link-color, #3390ec);
+  --sep: color-mix(in srgb, var(--hint) 30%, transparent);
+  --ok: #2ea043;
+  --danger: #e5484d;
+  --amber: #f2a93b;
+
+  --r-sm: 9px;
+  --r-md: 12px;
+  --r-lg: 14px;
+  --gap: 12px;
+  --pad: 14px;
+
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
