@@ -69,4 +69,9 @@ export const MIGRATIONS: Migration[] = [
     name: 'open_round_unique',
     sql: `CREATE UNIQUE INDEX rounds_one_open ON rounds(status) WHERE status = 'open';`,
   },
+  {
+    version: 3,
+    name: 'claim_lang',
+    sql: `ALTER TABLE claims ADD COLUMN lang TEXT NOT NULL DEFAULT 'en' CHECK (lang IN ('ru', 'en'));`,
+  },
 ];

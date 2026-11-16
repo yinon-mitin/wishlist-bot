@@ -13,3 +13,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Money helpers: tolerant price parsing, minor-unit conversion through USD with half-up rounding, localized formatting.
 - Birthday rounds: time-zone-aware next-birthday and day-count helpers (02-29 handled), one open round at all times.
 - Cached currency rates from open.er-api.com (RUB and ILS included) with DB-backed cache, failure fallback and GET /api/rates.
+- Owner item management API (create, update, delete) with strict validation; deleting a reserved gift notifies the people who reserved it.
