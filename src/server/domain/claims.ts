@@ -45,3 +45,15 @@ export function releaseClaim(db: Db, itemId: number, viewer: Viewer): void {
     db.prepare('DELETE FROM claims WHERE item_id = ? AND round_id = ? AND user_id = ?').run(itemId, round.id, viewer.id);
   }).immediate();
 }
+
+/** All claims of a round, grouped by item. */
+export function claimsByItem(db: Db, roundId: number): Map<number, ClaimRow[]> {
+  const rows = db.prepare('SELECT * FROM claims WHERE round_id = ? ORDER BY id').all(roundId) as ClaimRow[];
+  const map = new Map<number, ClaimRow[]>();
+  for (const row of rows) {
+    const list = map.get(row.item_id);
+    if (list) list.push(row);
+    else map.set(row.item_id, [row]);
+  }
+  return map;
+}

@@ -1,13 +1,13 @@
 import type { Config } from '../config';
-import type { ItemDto, Viewer } from '../../shared/types';
+import type { ClaimDto, ItemDto, Viewer } from '../../shared/types';
 import type { ClaimRow, ItemRow } from './types';
 
 /**
  * The single place where item responses are assembled. The owner's view never carries
  * claim or funding data (keys are absent, not empty).
  */
-export function toItemDto(item: ItemRow, _claims: ClaimRow[], _viewer: Viewer, _config: Pick<Config, 'currencies'>): ItemDto {
-  return {
+export function toItemDto(item: ItemRow, claims: ClaimRow[], viewer: Viewer, _config: Pick<Config, 'currencies'>): ItemDto {
+  const dto: ItemDto = {
     id: item.id,
     title: item.title,
     description: item.description,
@@ -20,4 +20,9 @@ export function toItemDto(item: ItemRow, _claims: ClaimRow[], _viewer: Viewer, _
     status: item.status,
     groupFunding: item.group_funding === 1,
   };
+  if (viewer.isOwner) return dto;
+  dto.claims = claims.map(
+    (c): ClaimDto => ({ userId: c.user_id, name: c.user_name, kind: c.kind, amountMinor: c.amount_minor, mine: c.user_id === viewer.id }),
+  );
+  return dto;
 }

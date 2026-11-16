@@ -1,11 +1,13 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { claimFull, claimsByItem, releaseClaim } from '../../domain/claims';
 import { createItem, deleteItem, getItem, updateItem, type ItemInput } from '../../domain/items';
 import { toItemDto } from '../../domain/views';
-import type { ClaimRow } from '../../domain/types';
+import type { ClaimRow, ItemRow } from '../../domain/types';
 import { getOpenRound } from '../../domain/rounds';
 import { messages } from '../../messages';
 import { HttpError, type AppDeps, type AppEnv } from '../../deps';
+import type { Viewer } from '../../../shared/types';
 import { requireOwner } from '../guards';
 
 const httpUrl = z
@@ -50,6 +52,52 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
   const priceAndCurrencyTogether = (price: number | null | undefined, cur: string | null | undefined) => {
     if ((price == null) !== (cur == null)) throw new HttpError(400, 'invalid_body');
   };
+
+  const parseId = (raw: string | undefined): number => {
+    const id = Number(raw);
+    if (!Number.isInteger(id) || id <= 0) throw new HttpError(404, 'not_found');
+    return id;
+  };
+
+  /** Items a viewer may see: guests only published ones; the owner also drafts. */
+  const visible = (item: ItemRow | null, isOwner: boolean): item is ItemRow =>
+    item !== null && (isOwner ? item.status === 'draft' || item.status === 'published' || item.status === 'received' : item.status === 'published');
+
+  const dtoFor = (item: ItemRow, viewer: Viewer) => {
+    const claims = viewer.isOwner ? [] : (claimsByItem(db, getOpenRound(db).id).get(item.id) ?? []);
+    return toItemDto(item, claims, viewer, config);
+  };
+
+  r.get('/items', (c) => {
+    const viewer = c.get('viewer');
+    const statuses = viewer.isOwner ? "('draft', 'published')" : "('published')";
+    const rows = db.prepare(`SELECT * FROM items WHERE status IN ${statuses} ORDER BY created_at DESC, id DESC`).all() as ItemRow[];
+    const byItem = viewer.isOwner ? new Map<number, ClaimRow[]>() : claimsByItem(db, getOpenRound(db).id);
+    return c.json(rows.map((row) => toItemDto(row, byItem.get(row.id) ?? [], viewer, config)));
+  });
+
+  r.get('/items/:id', (c) => {
+    const viewer = c.get('viewer');
+    const item = getItem(db, parseId(c.req.param('id')));
+    if (!visible(item, viewer.isOwner)) throw new HttpError(404, 'not_found');
+    return c.json(dtoFor(item, viewer));
+  });
+
+  r.post('/items/:id/claim', (c) => {
+    const viewer = c.get('viewer');
+    const id = parseId(c.req.param('id'));
+    claimFull(db, id, viewer, clock());
+    return c.json(dtoFor(getItem(db, id)!, viewer));
+  });
+
+  r.delete('/items/:id/claim', (c) => {
+    const viewer = c.get('viewer');
+    const id = parseId(c.req.param('id'));
+    releaseClaim(db, id, viewer);
+    const item = getItem(db, id);
+    if (!visible(item, viewer.isOwner)) throw new HttpError(404, 'not_found');
+    return c.json(dtoFor(item, viewer));
+  });
 
   r.post('/items', requireOwner, async (c) => {
     const input = await parseBody(c, createSchema);

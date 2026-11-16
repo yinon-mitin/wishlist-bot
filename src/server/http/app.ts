@@ -3,6 +3,7 @@ import { authMiddleware } from '../auth/middleware';
 import { HttpError, type AppDeps, type AppEnv } from '../deps';
 import { errorHandler } from './errors';
 import { itemsRoutes } from './routes/items';
+import { meRoutes } from './routes/me';
 import { ratesRoutes } from './routes/rates';
 import { staticHandler } from './static';
 
@@ -21,6 +22,7 @@ export function createApp(deps: AppDeps, opts: AppOptions = {}): Hono<AppEnv> {
 
   const api = new Hono<AppEnv>();
   api.use('*', authMiddleware(deps));
+  api.route('/', meRoutes(deps));
   api.route('/', ratesRoutes(deps));
   api.route('/', itemsRoutes(deps));
   opts.extraRoutes?.(api, deps);
