@@ -1,6 +1,7 @@
 import type { ItemDto } from '../../shared/types';
 import { api } from '../api';
 import { ErrorState, Loading, Screen } from '../components/Chrome';
+import { OwnerBar } from '../components/OwnerBar';
 import { ItemCard } from '../components/ItemCard';
 import { useAsync } from '../hooks';
 import { t } from '../i18n';
@@ -12,6 +13,7 @@ export function Home() {
   const must = items.filter((i) => i.priority === 'must').slice(0, 3);
   return (
     <Screen title={t('app.title')}>
+      <OwnerBar />
       {q.error && !q.data && <ErrorState error={q.error} onRetry={q.reload} />}
       {!q.data && !q.error && <Loading />}
       {q.data && items.length === 0 && <p class="muted center">{t('home.empty')}</p>}

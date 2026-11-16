@@ -41,3 +41,17 @@ export const prefs = {
     }
   },
 };
+
+/** Yes/no question: Telegram's native dialog when available, the browser's otherwise. */
+export const ask = (message: string): Promise<boolean> =>
+  new Promise((resolve) => {
+    try {
+      if (WebApp.isVersionAtLeast('6.2')) {
+        WebApp.showConfirm(message, (ok) => resolve(ok));
+        return;
+      }
+    } catch {
+      /* fall through */
+    }
+    resolve(window.confirm(message));
+  });

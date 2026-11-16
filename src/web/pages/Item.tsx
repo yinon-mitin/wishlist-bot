@@ -33,6 +33,7 @@ export function Item({ id }: { id: number }) {
             {item.description && <p class="desc">{item.description}</p>}
             <p class="meta"><PriorityDot priority={item.priority} />{t(`priority.${item.priority}`)}</p>
             {item.note && <p class="meta">{t('item.noteLabel')}: {item.note}</p>}
+            {viewer.isOwner && <a class="link" href={href.adminEdit(item.id)}>{t('owner.edit')}</a>}
             {item.url && isWebUrl(item.url) && <a class="link" href={item.url} target="_blank" rel="noopener noreferrer">{t('item.openStore')}</a>}
           </div>
           <ClaimButton item={item} onItem={q.set} onStale={q.reload} />

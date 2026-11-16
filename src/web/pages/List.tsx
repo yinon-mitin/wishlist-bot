@@ -3,6 +3,7 @@ import type { ItemDto } from '../../shared/types';
 import { api } from '../api';
 import { claimState } from '../claims';
 import { ErrorState, Loading, Screen } from '../components/Chrome';
+import { OwnerBar } from '../components/OwnerBar';
 import { ItemCard } from '../components/ItemCard';
 import { useAsync } from '../hooks';
 import { t } from '../i18n';
@@ -16,6 +17,7 @@ export function List() {
   const items = (q.data ?? []).filter((i) => !onlyFree || claimState(i, viewer).kind === 'free');
   return (
     <Screen title={t('list.title')} back={href.home()}>
+      <OwnerBar />
       {!viewer.isOwner && (
         <div class="seg" role="group">
           <button type="button" class={onlyFree ? '' : 'on'} aria-pressed={!onlyFree} onClick={() => setOnlyFree(false)}>{t('list.all')}</button>

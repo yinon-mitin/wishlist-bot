@@ -7,8 +7,9 @@ import { setLang } from './i18n';
 import { Home } from './pages/Home';
 import { Item } from './pages/Item';
 import { List } from './pages/List';
-import { parseRoute, type Route } from './router';
-import { AppProvider, type AppConfig } from './state';
+import { href, navigate, parseRoute, type Route } from './router';
+import { ItemForm } from './pages/admin/ItemForm';
+import { AppProvider, useApp, type AppConfig } from './state';
 import { prefs } from './tg';
 
 /** Subscribes to hash changes. */
@@ -25,9 +26,19 @@ export function useRoute(): Route {
   return route;
 }
 
-function Routes() {
+export function Routes() {
   const route = useRoute();
+  const { viewer } = useApp();
+  const adminOnly = route.name.startsWith('admin-');
+  useEffect(() => {
+    if (adminOnly && !viewer.isOwner) navigate(href.home());
+  }, [adminOnly, viewer.isOwner]);
+  if (adminOnly && !viewer.isOwner) return <Home />;
   switch (route.name) {
+    case 'admin-new':
+      return <ItemForm />;
+    case 'admin-edit':
+      return <ItemForm key={route.id} id={route.id} />;
     case 'list':
       return <List />;
     case 'item':
