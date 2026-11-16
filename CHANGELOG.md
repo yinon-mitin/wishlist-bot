@@ -18,3 +18,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Guest API (list, details, reserve, release, /api/me) built on a single dto assembler; the owner's responses never contain reservation data, enforced by cross-route tests.
 - SSRF-safe URL fetching (resolved-address checks, redirect re-validation, size and time limits) and owner-only link preview from OpenGraph, JSON-LD and price meta tags.
 - Image upload and import by URL: format sniffing, EXIF stripped, WebP at most 1200px, content-hash names, public immutable serving, unused files garbage-collected.
+- Telegram bot: localized /start and /help with a button that opens the mini-app, menu button setup, and a notifier that never throws on blocked users.
