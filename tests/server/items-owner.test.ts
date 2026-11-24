@@ -78,6 +78,68 @@ describe('owner item management', () => {
     expect(await ok.json()).toMatchObject({ priceMinor: null, currency: null });
   });
 
+  it('stores a category and lets the owner mark gifts received or bought independently of the birthday reveal', async () => {
+    const { t, create } = setup();
+    const item = await (await create({ ...valid, category: 'Home' })).json();
+    expect(item).toMatchObject({ category: 'Home', status: 'published' });
+
+    const received = await t.call(`/api/items/${item.id}/received`, { as: owner, method: 'POST' });
+    expect(received.status).toBe(200);
+    expect(await received.json()).toMatchObject({ status: 'received' });
+
+    const bought = await (await create({ ...valid, title: 'Lamp' })).json();
+    const archived = await t.call(`/api/items/${bought.id}/archive`, { as: owner, method: 'POST' });
+    expect(archived.status).toBe(200);
+    expect(await archived.json()).toMatchObject({ status: 'archived' });
+
+    const archive = await (await t.call('/api/items?status=archive', { as: owner })).json();
+    expect(archive.map((entry: { id: number; status: string }) => [entry.id, entry.status])).toEqual([[bought.id, 'archived'], [item.id, 'received']]);
+  });
+
+  it('only a published gift can leave the list as received or bought', async () => {
+    const { t, create } = setup();
+    const draft = await (await create({ ...valid, status: 'draft' })).json();
+    for (const action of ['received', 'archive']) {
+      const res = await t.call(`/api/items/${draft.id}/${action}`, { as: owner, method: 'POST' });
+      expect(res.status, action).toBe(409);
+      expect(await res.json()).toEqual({ error: 'invalid_status' });
+    }
+    const item = await (await create()).json();
+    await t.call(`/api/items/${item.id}/received`, { as: owner, method: 'POST' });
+    for (const action of ['received', 'archive']) {
+      expect((await t.call(`/api/items/${item.id}/${action}`, { as: owner, method: 'POST' })).status, action).toBe(409);
+    }
+    expect(await (await t.call(`/api/items/${item.id}`, { as: owner })).json()).toMatchObject({ status: 'received' });
+  });
+
+  it('answers 404 when the gift to mark does not exist', async () => {
+    const { t } = setup();
+    for (const action of ['received', 'archive', 'restore']) {
+      expect((await t.call(`/api/items/999/${action}`, { as: owner, method: 'POST' })).status, action).toBe(404);
+    }
+  });
+
+  it('puts a received or bought gift back on the wishlist, and only those', async () => {
+    const { t, create } = setup();
+    const item = await (await create()).json();
+    const restore = () => t.call(`/api/items/${item.id}/restore`, { as: owner, method: 'POST' });
+    expect((await restore()).status).toBe(409);
+    await t.call(`/api/items/${item.id}/archive`, { as: owner, method: 'POST' });
+    const res = await restore();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ status: 'published' });
+    expect((await t.call('/api/items', { as: guest(1) })).status).toBe(200);
+    expect((await (await t.call('/api/items', { as: guest(2) })).json()).map((i: { id: number }) => i.id)).toEqual([item.id]);
+  });
+
+  it('keeps status actions owner-only', async () => {
+    const { t, create } = setup();
+    const item = await (await create()).json();
+    for (const path of [`/api/items/${item.id}/received`, `/api/items/${item.id}/archive`, `/api/items/${item.id}/restore`]) {
+      expect((await t.call(path, { as: guest(1), method: 'POST' })).status).toBe(403);
+    }
+  });
+
   it('answers 404 for PATCH and DELETE of a missing item', async () => {
     const { t } = setup();
     expect((await t.call('/api/items/999', { as: owner, method: 'PATCH', json: { title: 'x' } })).status).toBe(404);

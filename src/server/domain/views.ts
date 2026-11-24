@@ -15,6 +15,7 @@ export function toItemDto(item: ItemRow, claims: ClaimRow[], viewer: Viewer, _co
     priceMinor: item.price_minor,
     currency: item.currency,
     imageUrl: item.image_file ? `/images/${item.image_file}` : null,
+    category: item.category,
     priority: item.priority,
     note: item.note,
     status: item.status,

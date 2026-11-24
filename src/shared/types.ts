@@ -26,6 +26,7 @@ export interface ItemDto {
   priceMinor: number | null;
   currency: string | null;
   imageUrl: string | null;
+  category: string;
   priority: Priority;
   note: string;
   status: ItemStatus;

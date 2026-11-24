@@ -3,6 +3,7 @@ import { parseStartParam } from '../shared/deeplink';
 export type Route =
   | { name: 'home' }
   | { name: 'list' }
+  | { name: 'archive' }
   | { name: 'item'; id: number }
   | { name: 'admin-new' }
   | { name: 'admin-edit'; id: number }
@@ -17,6 +18,7 @@ export function parseRoute(hash: string): Route {
   const [a, b, c] = parts;
   if (parts.length === 0) return HOME;
   if (a === 'items' && parts.length === 1) return { name: 'list' };
+  if (a === 'archive' && parts.length === 1) return { name: 'archive' };
   if (a === 'item' && parts.length === 2) {
     const id = positiveInt(b);
     return id ? { name: 'item', id } : HOME;
@@ -39,6 +41,7 @@ export function routeFromStartParam(p: string | null | undefined): string {
 export const href = {
   home: () => '#/',
   list: () => '#/items',
+  archive: () => '#/archive',
   item: (id: number) => `#/item/${id}`,
   adminNew: () => '#/admin/item/new',
   adminEdit: (id: number) => `#/admin/item/${id}`,

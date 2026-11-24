@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wishlist mini-app — редизайн UX/UI</title>
+<style>
+:root{--bg:#fff;--fg:#1b1f24;--muted:#5b6570;--line:#e3e7ec;--card:#f4f5f7;--ac:#3390ec;--ok:#2ea043;--danger:#e5484d;--amber:#f2a93b}
+@media(prefers-color-scheme:dark){:root{--bg:#14181d;--fg:#e6e9ed;--muted:#9aa5b1;--line:#2a313a;--card:#1d232a}}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,sans-serif;margin:0}
+main{max-width:860px;margin:0 auto;padding:32px 16px 64px}
+h1{margin:0 0 4px}h2{margin:40px 0 8px;border-bottom:1px solid var(--line);padding-bottom:6px}h3{margin:24px 0 4px}
+code{background:rgba(127,127,127,.15);padding:.1em .35em;border-radius:4px}li{margin:.3rem 0}
+.muted{color:var(--muted)}.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;background:var(--card);border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%}td,th{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+.shots{display:flex;gap:16px;flex-wrap:wrap;margin:16px 0}
+.phone{width:250px;border:1px solid var(--line);border-radius:22px;background:var(--card);padding:10px 0 0;overflow:hidden;font-size:12.5px;line-height:1.35}
+.phone .cap{font-size:11px;color:var(--muted);text-align:center;padding:6px 0 8px}
+.ph-head{display:flex;justify-content:space-between;padding:0 12px 6px;font-weight:600}
+.ph-title{font-size:20px;font-weight:700;padding:0 12px 6px}
+.seg{display:flex;margin:4px 12px 6px;background:rgba(127,127,127,.18);border-radius:8px;padding:2px}
+.seg span{flex:1;min-width:0;text-align:center;padding:4px 0;border-radius:7px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative}
+.seg .bd{position:absolute;top:-1px;right:3px;min-width:15px;padding:0 4px;border-radius:99px;background:var(--danger);color:#fff;font-size:10px;font-style:normal;font-weight:600;line-height:15px}
+.seg .on{background:var(--bg);color:var(--fg);font-weight:600}
+.chips{display:flex;gap:5px;padding:2px 12px 8px;overflow:hidden;white-space:nowrap}
+.chips span{padding:3px 9px;border-radius:99px;background:rgba(127,127,127,.18)}
+.chips .on{background:var(--ac);color:#fff}
+.group{margin:0 10px 8px;background:var(--bg);border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:.5px solid var(--line)}
+.row:last-child{border:0}
+.th{width:38px;height:38px;border-radius:8px;background:#7d8fa6;flex:none}
+.row b{font-weight:500;display:block}.row small{color:var(--muted)}
+.row .r{margin-left:auto;color:var(--ok);font-size:11.5px}.row .r.g{color:var(--muted)}
+.hero{height:110px;background:#7d8fa6;margin:0}
+.mainbtn{margin:8px 10px 10px;background:var(--ac);color:#fff;text-align:center;padding:9px;border-radius:12px;font-weight:600}
+.mainbtn.alt{background:rgba(127,127,127,.25);color:var(--fg)}
+.count{margin:0 10px 8px;background:var(--bg);border-radius:12px;padding:8px 12px;display:flex;justify-content:space-between;align-items:baseline}
+.count b{font-size:22px}
+.danger{color:var(--danger)}
+</style></head>
+<body><main>
+<h1>Редизайн UX/UI мини-приложения</h1>
+<p class="muted">Короткий дизайн-документ · 2026-11-22 · статус: <b>ждёт одобрения</b>. Код не писался.</p>
+
+<h2>Зачем</h2>
+<p>Сейчас приложение выглядит как сайт внутри Telegram: цвета уже берутся из темы Telegram, но структура «веб»: отдельная кнопка «Назад» в собственной шапке, главная и список на разных экранах, один длинный список без категорий, у владельца ссылки-кнопки вперемешку («Добавить», «Раскрытие», «Архив»), действия над подарком в виде двух больших кнопок. После импорта старого вишлиста подарков станет около 70 в 11 категориях, и такой интерфейс перестанет быть удобным.</p>
+<p><b>Успех:</b> гость за два касания находит нужный подарок и бронирует его; владелец за минуту разбирает 70 черновиков; приложение не отличить по поведению от родных экранов Telegram (нативные «Назад» и главная кнопка, виброотклик, тема, безопасные зоны).</p>
+
+<h2>Что уже решено вами</h2>
+<ul>
+<li><b>Без нижней панели.</b> Навигация — верхние вкладки (сегментный переключатель).</li>
+<li><b>Категории — чипсы-фильтр</b> над списком, список плоский.</li>
+<li><b>Стиль:</b> тема Telegram и сгруппированные списки в духе iOS.</li>
+<li>Не нужна отдельная вкладка «Список / Архив» как у нижней панели: архив владельца — одна из верхних вкладок.</li>
+</ul>
+
+<h2>Подходы</h2>
+<table>
+<tr><th>Подход</th><th>Плюсы</th><th>Минусы</th></tr>
+<tr><td><b>A. Переделать на месте</b> (выбран): те же Preact, хэш-маршруты и токены, новые компоненты и нативные кнопки Telegram</td><td>Лёгкий бандл (сейчас 30 КБ gzip при бюджете 90), тесты и e2e переиспользуются, нет новых зависимостей</td><td>Компоненты пишем сами</td></tr>
+<tr><td>B. Готовый UI-кит Telegram</td><td>Максимум нативного вида</td><td>Рассчитан на React, тяжёлый, конфликтует с Preact, обновляется вслед за Telegram</td></tr>
+<tr><td>C. Переписать с нуля на другом стеке</td><td>Чистый лист</td><td>Теряем тесты и e2e, риск регрессий в приватности брони, дорого</td></tr>
+</table>
+
+<h2>Дизайн</h2>
+
+<h3>1. Один экран «Вишлист» вместо «Главная + Список»</h3>
+<p>Маршрут <code>#/items</code> становится домом. Сверху карточка с обратным отсчётом до дня рождения, ниже вкладки, чипсы категорий и плоский список. Блок «Очень хочу» и кнопка «Весь список» уходят: приоритет виден точкой у названия, а нужное находится фильтром. Маршрут <code>#/</code> ведёт сюда же.</p>
+<div class="shots">
+ <div class="phone"><div class="cap">Гость · вкладка «Все»</div>
+  <div class="ph-head"><span>Вишлист</span><span>EN</span></div>
+  <div class="count"><span>До дня рождения</span><b>112 дн</b></div>
+  <div class="seg"><span class="on">Все</span><span>Свободные</span><span>Мои</span></div>
+  <div class="chips"><span class="on">Все 70</span><span>Gadgets 18</span><span>Cooking 8</span><span>Digital 8</span></div>
+  <div class="group">
+   <div class="row"><div class="th"></div><div><b>Dyson V15s</b><small>$849</small></div><span class="r">Свободно</span></div>
+   <div class="row"><div class="th"></div><div><b>Flipper Zero</b><small>$199</small></div><span class="r g">Анна</span></div>
+   <div class="row"><div class="th"></div><div><b>Teapot</b><small>₪53</small></div><span class="r">Свободно</span></div>
+  </div></div>
+ <div class="phone"><div class="cap">Владелец · вкладка «Черновики»</div>
+  <div class="ph-head"><span>Вишлист</span><span>EN</span></div>
+  <div class="seg"><span>Активные</span><span class="on" style="overflow:visible">Черновики<i class="bd">70</i></span><span>Архив</span></div>
+  <div class="chips"><span class="on">Все 70</span><span>Gadgets 18</span><span>Cooking 8</span><span>Digital 8</span></div>
+  <div class="group">
+   <div class="row"><div class="th"></div><div><b>Dyson V15s</b><small>$849</small></div><span class="r g">Черновик</span></div>
+   <div class="row"><div class="th"></div><div><b>Flipper Zero</b><small>$199</small></div><span class="r g">Черновик</span></div>
+  </div>
+  <div class="mainbtn">Опубликовать все (70)</div></div>
+</div>
+
+<h3>2. Верхние вкладки</h3>
+<table>
+<tr><th>Кто</th><th>Вкладки</th><th>Что внутри</th></tr>
+<tr><td>Гость</td><td>Все · Свободные · Мои</td><td>«Мои» — подарки, которые гость забронировал или в которые вложился (считается на клиенте по уже имеющемуся полю «моя бронь»). Отдельный экран «Мои брони» не нужен.</td></tr>
+<tr><td>Владелец</td><td>Активные · Черновики · Архив</td><td>Архив = «получено» и «купил сам». У владельца вкладок про брони нет вообще.</td></tr>
+</table>
+<p><b>Подписи вкладок не переносятся.</b> Числа не пишутся в самой подписи: количество подарков уже показывает чипс «Все N» под вкладками. Единственное исключение — красный значок-бейдж с числом на углу вкладки «Черновики» (когда их больше нуля), он лежит поверх вкладки и не меняет ширину. Остальные правила:</p>
+<ul>
+<li>Колонки равной ширины, подпись в одну строку (<code>white-space: nowrap</code>), при нехватке места обрезается с «…», а не переносится.</li>
+<li>Подписи короткие, одним словом: «Все · Свободные · Мои», «Активные · Черновики · Архив» (RU) и «All · Free · Mine», «Active · Drafts · Archive» (EN). При добавлении языка или вкладки сначала проверяется ширина.</li>
+<li>На экранах уже 340 px кегль подписей вкладок уменьшается с 15 до 13 px.</li>
+<li>Проверка в тестах: e2e на ширине 320 px в RU и EN, высота каждой вкладки равна высоте одной строки (перенос ловится автоматически).</li>
+</ul>
+<p>Вкладка и выбранная категория живут в адресе: <code>#/items?tab=drafts&amp;c=Gadgets</code>. Возврат из подарка по «Назад» приводит к тому же списку и той же прокрутке, а не к сбросу.</p>
+
+<h3>3. Категории и поиск</h3>
+<ul>
+<li>Чипсы: «Все N» и по одной на категорию с количеством, прокрутка по горизонтали, пустая категория — «Другое». Для гостя счётчики считаются в рамках выбранной вкладки.</li>
+<li>Поиск по названию: значок лупы в шапке раскрывает поле над чипсами, фильтр на клиенте. <i>(Моё решение, см. ниже.)</i></li>
+</ul>
+
+<h3>4. Нативная интеграция с Telegram</h3>
+<ul>
+<li><b>BackButton</b> Telegram вместо текстовой ссылки «Назад» на вложенных экранах (в обычном браузере остаётся ссылка).</li>
+<li><b>MainButton</b> для главного действия экрана: «Забронировать» / «Снять бронь» / «Вложиться» у гостя, «Добавить подарок» на списке и «Сохранить» в форме у владельца, «Опубликовать» на черновике. В браузере рисуется как кнопка внизу, как сейчас.</li>
+<li><b>Виброотклик:</b> лёгкий при смене вкладки и чипса, «успех» и «ошибка» при действиях.</li>
+<li>Диалоги подтверждения остаются нативными (<code>showConfirm</code>), безопасные зоны и тёмная тема учитываются.</li>
+</ul>
+
+<h3>5. Экран подарка</h3>
+<div class="shots">
+ <div class="phone"><div class="cap">Гость</div>
+  <div class="hero"></div>
+  <div class="group" style="margin-top:8px"><div class="row" style="display:block"><b style="font-size:16px">Dyson V15s</b><small>$849 · ≈ 78 000 ₽ · Очень хочу</small></div></div>
+  <div class="group"><div class="row"><span>Описание, заметка</span></div><div class="row"><span style="color:var(--ac)">Открыть в магазине</span></div></div>
+  <div class="mainbtn">Забронировать</div></div>
+ <div class="phone"><div class="cap">Владелец, опубликованный подарок</div>
+  <div class="hero"></div>
+  <div class="group" style="margin-top:8px"><div class="row" style="display:block"><b style="font-size:16px">Dyson V15s</b><small>$849 · Gadgets</small></div></div>
+  <div class="group"><div class="row"><span style="color:var(--ac)">Изменить</span></div><div class="row"><span>Получил</span></div><div class="row"><span>Купил сам</span></div></div></div>
+</div>
+<p>Крупная картинка во всю ширину, название и цена в сгруппированной карточке, ссылки и действия владельца — строками списка вместо двух больших кнопок. Складчина (полоса прогресса, вкладчики, поле суммы) остаётся по смыслу прежней, только в тех же карточках.</p>
+
+<h3>6. Форма подарка</h3>
+<p>Поля группируются в карточки (основное · цена и валюта · приоритет, заметка, складчина). У поля «Категория» подсказки из уже существующих категорий (<code>datalist</code>), чтобы после импорта не плодить «Gadget» и «Gadgets». Сохранение — MainButton.</p>
+
+<h3>7. Данные и API</h3>
+<ul>
+<li>Новых данных на сервере нет. Одно исключение: <code>POST /api/items/publish-all</code> (только владелец) переводит все черновики в опубликованные, нужен для 70 импортированных. Идемпотентный, отвечает числом опубликованных.</li>
+<li>Список по-прежнему приходит одним запросом (до нескольких сотен позиций), фильтры и поиск на клиенте.</li>
+<li>Владелец по-прежнему не получает данных о бронях ни в ответах, ни в DOM.</li>
+</ul>
+
+<h2>Цели и не-цели</h2>
+<ul>
+<li><b>Цели:</b> нативное ощущение, быстрый поиск среди десятков подарков, удобная работа с черновиками, меньше шагов у владельца.</li>
+<li><b>Не-цели:</b> нижняя панель; новые функции (приветственные сообщения, поиск картинок, команды бота); смена стека; смена способа авторизации; переключатель темы (тему задаёт Telegram).</li>
+<li><b>Антицели:</b> любое решение, из-за которого владелец может узнать о брони раньше дня рождения (в том числе через счётчики, фильтры и «Мои» на его вкладках); раздувание бандла сверх бюджета 90 КБ gzip; потеря RU/EN-паритета строк.</li>
+</ul>
+
+<h2>Ограничения</h2>
+<ul>
+<li>Preact, хэш-маршруты, без новых зависимостей; работает и вне Telegram (запасные варианты кнопок).</li>
+<li>Разработка через RED-GREEN: тесты компонентов обновляются первыми, e2e-сценарии переписываются под новые вкладки; проверки <code>make check</code> и e2e остаются зелёными.</li>
+<li>Тексты через <code>t()</code>, одновременно RU и EN; доступность (роли, подписи) сохраняется.</li>
+</ul>
+
+<h2>Мои решения, которые стоит проверить</h2>
+<ol>
+<li>Главная и список объединены в один экран, блок «Очень хочу» убран.</li>
+<li>«Мои брони» — вкладка «Мои» внутри списка, а не отдельный экран.</li>
+<li>Вкладки владельца: Активные · Черновики · Архив; «Раскрытие» и «Добавить» — строкой/кнопкой на экране, не вкладкой.</li>
+<li>Поиск по названию под значком лупы.</li>
+<li>Вкладка и категория хранятся в адресе, чтобы «Назад» не сбрасывал фильтры.</li>
+<li>Подсказки категорий в форме; «Опубликовать все» как единственный новый эндпоинт.</li>
+<li>Действия владельца над подарком — строками списка, а не большими кнопками.</li>
+<li>Числа не пишутся в подписях вкладок (бейдж только на «Черновики»), подписи не переносятся.</li>
+</ol>
+
+<h2>Этапы реализации</h2>
+<ol>
+<li><b>Основа:</b> компоненты <code>Tabs</code>, <code>Chips</code>, <code>Group</code>/<code>Row</code>, хуки <code>useBackButton</code> и <code>useMainButton</code> (с запасным вариантом вне Telegram), токены карточек.</li>
+<li><b>Экран «Вишлист»:</b> вкладки, чипсы, поиск, состояние в адресе, счётчики; удаление Home как отдельного экрана.</li>
+<li><b>Экран подарка и действия владельца.</b></li>
+<li><b>Форма и «Опубликовать все».</b></li>
+<li><b>Раскрытие, e2e, проверка на телефоне в светлой и тёмной теме.</b></li>
+</ol>
+<p class="muted">Каждый этап — отдельный коммит с зелёными тестами; запись в CHANGELOG в том же изменении.</p>
+</main></body></html>

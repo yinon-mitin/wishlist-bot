@@ -16,13 +16,14 @@ interface Preview {
   imageUrl: string | null;
   priceMinor: number | null;
   currency: string | null;
-  error?: 'blocked' | 'unreachable' | 'too_large';
+  error?: 'blocked' | 'unreachable' | 'too_large' | 'denied';
 }
 
 interface Form {
   url: string;
   title: string;
   description: string;
+  category: string;
   price: string;
   currency: string;
   priority: Priority;
@@ -33,7 +34,7 @@ interface Form {
 
 const priceText = (minor: number) => (minor % 100 === 0 ? String(minor / 100) : (minor / 100).toFixed(2));
 const fromItem = (i: ItemDto): Form => ({
-  url: i.url ?? '', title: i.title, description: i.description, price: i.priceMinor == null ? '' : priceText(i.priceMinor),
+  url: i.url ?? '', title: i.title, description: i.description, category: i.category, price: i.priceMinor == null ? '' : priceText(i.priceMinor),
   currency: i.currency ?? '', priority: i.priority, note: i.note, groupFunding: i.groupFunding, draft: false,
 });
 
@@ -49,7 +50,7 @@ function Field({ id, label, children }: { id: string; label: string; children: p
 /** Create (no id) or edit (id) a gift. */
 export function ItemForm({ id }: { id?: number }) {
   const { config } = useApp();
-  const empty: Form = { url: '', title: '', description: '', price: '', currency: config.defaultCurrency, priority: 'want', note: '', groupFunding: false, draft: false };
+  const empty: Form = { url: '', title: '', description: '', category: '', price: '', currency: config.defaultCurrency, priority: 'want', note: '', groupFunding: false, draft: false };
   const [f, setF] = useState<Form>(empty);
   const [savedId, setSavedId] = useState(id);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export function ItemForm({ id }: { id?: number }) {
     setFetching(true);
     try {
       const p = await api<Preview>('/api/link-preview', { method: 'POST', json: { url: f.url } });
-      if (p.error) return setHint(t(p.error === 'blocked' ? 'form.preview.blocked' : 'form.preview.unreachable'));
+      if (p.error) return setHint(t(p.error === 'blocked' ? 'form.preview.blocked' : p.error === 'denied' ? 'form.preview.denied' : 'form.preview.unreachable'));
       const priceOk = p.priceMinor != null && p.currency != null && config.currencies.includes(p.currency);
       const incoming: Partial<Form> = {
         ...(p.title ? { title: p.title } : {}),
@@ -114,7 +115,7 @@ export function ItemForm({ id }: { id?: number }) {
     setBusy(true);
     try {
       const json = {
-        title: f.title.trim(), description: f.description, url: f.url.trim() || null, ...v,
+        title: f.title.trim(), description: f.description, category: f.category.trim(), url: f.url.trim() || null, ...v,
         priority: f.priority, note: f.note, groupFunding: f.groupFunding,
       };
       const createBody = f.draft ? { ...json, status: 'draft' as const } : json;
@@ -172,6 +173,7 @@ export function ItemForm({ id }: { id?: number }) {
         {hint && <p class="muted small" role="status">{hint}</p>}
         <Field id="f-title" label={t('form.title')}><input id="f-title" maxLength={200} value={f.title} onInput={(e) => set('title', e.currentTarget.value)} /></Field>
         <Field id="f-desc" label={t('form.description')}><textarea id="f-desc" rows={3} maxLength={4000} value={f.description} onInput={(e) => set('description', e.currentTarget.value)} /></Field>
+        <Field id="f-category" label={t('form.category')}><input id="f-category" maxLength={100} value={f.category} onInput={(e) => set('category', e.currentTarget.value)} /></Field>
         <div class="inline">
           <Field id="f-price" label={t('form.price')}><input id="f-price" inputMode="decimal" value={f.price} onInput={(e) => set('price', e.currentTarget.value)} /></Field>
           <Field id="f-cur" label={t('form.currency')}>

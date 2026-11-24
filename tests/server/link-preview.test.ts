@@ -77,6 +77,13 @@ describe('getLinkPreview', () => {
     }
   });
 
+  it('passes "denied" through, so the owner hears that the site refuses bots rather than that it is down', async () => {
+    const denied: SafeFetch = async () => {
+      throw new SafeFetchError('denied');
+    };
+    expect((await getLinkPreview('https://x.example/', denied)).error).toBe('denied');
+  });
+
   it('reports a non-HTML document as unreachable instead of parsing it', async () => {
     expect((await getLinkPreview('https://x.example/a.pdf', ok('%PDF-1.4', 'application/pdf'))).error).toBe('unreachable');
   });

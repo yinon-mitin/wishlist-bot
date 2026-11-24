@@ -25,6 +25,8 @@ beforeAll(async () => {
     if (url === '/to-private') return void res.writeHead(302, { Location: 'http://169.254.169.254/latest/meta-data' }).end();
     if (url === '/to-ok') return void res.writeHead(302, { Location: '/ok' }).end();
     if (url.startsWith('/loop')) return void res.writeHead(302, { Location: `/loop${Number(url.slice(5) || 0) + 1}` }).end();
+    if (url === '/challenge') return void res.writeHead(403, { 'Content-Type': 'text/html' }).end('Just a moment...');
+    if (url === '/slow-down') return void res.writeHead(429).end();
     res.writeHead(404).end();
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -88,6 +90,12 @@ describe('createSafeFetch', () => {
 
   it('aborts a response larger than the limit', async () => {
     expect(await code(local(`${base}/big`, { maxBytes: 1024 }))).toBe('too_large');
+  });
+
+  it('tells a site that refuses automated requests (403, 429) from one that is simply down', async () => {
+    expect(await code(local(`${base}/challenge`))).toBe('denied');
+    expect(await code(local(`${base}/slow-down`))).toBe('denied');
+    expect(await code(local(`${base}/missing`))).toBe('unreachable');
   });
 
   it('times out on a server that never answers', async () => {

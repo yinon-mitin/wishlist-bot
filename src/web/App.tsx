@@ -45,6 +45,8 @@ export function Routes() {
       return <ItemForm key={route.id} id={route.id} />;
     case 'list':
       return <List />;
+    case 'archive':
+      return <List archive />;
     case 'item':
       return <Item id={route.id} />;
     default:

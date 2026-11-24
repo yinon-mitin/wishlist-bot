@@ -8,6 +8,7 @@ export interface ItemRow {
   price_minor: number | null;
   currency: string | null;
   image_file: string | null;
+  category: string;
   priority: Priority;
   note: string;
   status: ItemStatus;

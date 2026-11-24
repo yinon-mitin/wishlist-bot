@@ -1,6 +1,7 @@
 import type { Db } from '../db/db';
 import type { ItemStatus, Priority } from '../../shared/types';
 import type { ItemRow } from './types';
+import { HttpError } from '../deps';
 
 export interface ItemInput {
   title: string;
@@ -9,6 +10,7 @@ export interface ItemInput {
   priceMinor?: number | null;
   currency?: string | null;
   imageFile?: string | null;
+  category?: string;
   priority?: Priority;
   note?: string;
   groupFunding?: boolean;
@@ -23,6 +25,7 @@ const COLUMNS: Record<keyof ItemInput, string> = {
   priceMinor: 'price_minor',
   currency: 'currency',
   imageFile: 'image_file',
+  category: 'category',
   priority: 'priority',
   note: 'note',
   status: 'status',
@@ -36,8 +39,8 @@ export function getItem(db: Db, id: number): ItemRow | null {
 export function createItem(db: Db, input: ItemInput, now: Date): ItemRow {
   const ts = now.toISOString();
   const id = db
-    .prepare('INSERT INTO items(title, description, url, price_minor, currency, image_file, priority, note, status, group_funding, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(input.title, input.description ?? '', input.url ?? null, input.priceMinor ?? null, input.currency ?? null, input.imageFile ?? null, input.priority ?? 'want', input.note ?? '', input.status ?? 'published', input.groupFunding ? 1 : 0, ts, ts).lastInsertRowid;
+    .prepare('INSERT INTO items(title, description, url, price_minor, currency, image_file, category, priority, note, status, group_funding, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(input.title, input.description ?? '', input.url ?? null, input.priceMinor ?? null, input.currency ?? null, input.imageFile ?? null, input.category ?? '', input.priority ?? 'want', input.note ?? '', input.status ?? 'published', input.groupFunding ? 1 : 0, ts, ts).lastInsertRowid;
   return getItem(db, Number(id))!;
 }
 
@@ -73,5 +76,18 @@ export function publishItem(db: Db, id: number, now: Date): ItemRow | null {
   if (existing.status === 'published') return existing;
   if (existing.status !== 'draft') return existing;
   db.prepare("UPDATE items SET status = 'published', updated_at = ? WHERE id = ?").run(now.toISOString(), id);
+  return getItem(db, id);
+}
+
+/**
+ * Takes a published gift off the active wishlist (received, or bought by the owner), or puts it back.
+ * Only these transitions are allowed; anything else answers 409 so a draft cannot skip publishing.
+ */
+export function setItemStatus(db: Db, id: number, status: Extract<ItemStatus, 'published' | 'received' | 'archived'>, now: Date): ItemRow | null {
+  const existing = getItem(db, id);
+  if (!existing) return null;
+  const allowedFrom: ItemStatus[] = status === 'published' ? ['received', 'archived'] : ['published'];
+  if (!allowedFrom.includes(existing.status)) throw new HttpError(409, 'invalid_status');
+  db.prepare('UPDATE items SET status = ?, updated_at = ? WHERE id = ?').run(status, now.toISOString(), id);
   return getItem(db, id);
 }

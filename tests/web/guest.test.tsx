@@ -29,7 +29,7 @@ const owner = { ...guest, id: 1, isOwner: true };
 
 const item = (over: Partial<ItemDto> = {}): ItemDto => ({
   id: 5, title: 'Keyboard', description: 'Aluminium case', url: 'https://shop.example/kbd', priceMinor: 18900, currency: 'USD',
-  imageUrl: null, priority: 'must', note: '', status: 'published', groupFunding: false, claims: [], ...over,
+  imageUrl: null, category: '', priority: 'must', note: '', status: 'published', groupFunding: false, claims: [], ...over,
 });
 const claim = (over = {}) => ({ userId: 9, name: 'Anna', kind: 'full' as const, amountMinor: null, mine: false, ...over });
 

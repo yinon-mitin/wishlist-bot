@@ -74,4 +74,21 @@ export const MIGRATIONS: Migration[] = [
     name: 'claim_lang',
     sql: `ALTER TABLE claims ADD COLUMN lang TEXT NOT NULL DEFAULT 'en' CHECK (lang IN ('ru', 'en'));`,
   },
+  {
+    version: 4,
+    name: 'item_categories',
+    sql: `
+      ALTER TABLE items ADD COLUMN category TEXT NOT NULL DEFAULT '';
+      -- Older notes were stored as "Категория: X" in the description. The first line becomes the category
+      -- (at most 100 characters, as the API allows); whatever follows stays as the description.
+      UPDATE items
+      SET category = substr(trim(CASE WHEN instr(substr(description, 12), char(10)) > 0
+                                      THEN substr(substr(description, 12), 1, instr(substr(description, 12), char(10)) - 1)
+                                      ELSE substr(description, 12) END, char(32, 13, 10)), 1, 100),
+          description = CASE WHEN instr(substr(description, 12), char(10)) > 0
+                             THEN trim(substr(substr(description, 12), instr(substr(description, 12), char(10)) + 1), char(32, 13, 10))
+                             ELSE '' END
+      WHERE description LIKE 'Категория: %';
+    `,
+  },
 ];

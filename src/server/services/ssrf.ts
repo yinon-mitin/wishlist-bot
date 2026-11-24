@@ -2,7 +2,7 @@ import { lookup as dnsLookup } from 'node:dns/promises';
 import { BlockList, isIP } from 'node:net';
 import { Agent, fetch as undiciFetch } from 'undici';
 
-export type SafeFetchErrorCode = 'blocked' | 'bad_url' | 'too_large' | 'too_many_redirects' | 'timeout' | 'unreachable';
+export type SafeFetchErrorCode = 'blocked' | 'bad_url' | 'too_large' | 'too_many_redirects' | 'timeout' | 'unreachable' | 'denied';
 
 export class SafeFetchError extends Error {
   constructor(public code: SafeFetchErrorCode) {
@@ -133,7 +133,8 @@ export function createSafeFetch(factory: SafeFetchFactoryOptions = {}): SafeFetc
         }
         if (res.status >= 400) {
           await res.body?.cancel();
-          throw new SafeFetchError('unreachable');
+          // 401/403/429 is a shop's bot protection (Cloudflare, AliExpress): the site is up, it just refuses us.
+          throw new SafeFetchError([401, 403, 429].includes(res.status) ? 'denied' : 'unreachable');
         }
         const declared = Number(res.headers.get('content-length'));
         if (Number.isFinite(declared) && declared > maxBytes) {

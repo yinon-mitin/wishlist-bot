@@ -29,7 +29,7 @@ const mount = (ui: preact.ComponentChild, viewer = owner) =>
 
 const saved = (over: Partial<ItemDto> = {}): ItemDto => ({
   id: 5, title: 'Keyboard', description: '', url: null, priceMinor: null, currency: null, imageUrl: null,
-  priority: 'want', note: '', status: 'published', groupFunding: false, ...over,
+  category: '', priority: 'want', note: '', status: 'published', groupFunding: false, ...over,
 });
 const preview = (over = {}) => ({ title: 'Keychron Q1', description: 'Aluminium', imageUrl: 'https://shop.example/i.jpg', priceMinor: 18900, currency: 'USD', siteName: 'Shop', ...over });
 const field = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
@@ -68,6 +68,20 @@ describe('access', () => {
     expect(screen.queryByRole('button', { name: 'Reserve' })).toBeNull();
     expect(screen.queryByText(/Reserved/)).toBeNull();
     expect(screen.getByRole('link', { name: 'Edit' })).toBeTruthy();
+  });
+
+  it('lets the owner mark a published gift as bought', async () => {
+    apiMock.mockResolvedValue(saved());
+    mount(<Item id={5} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Bought it myself' }));
+    await waitFor(() => expect(calls('POST').map(([path]) => path)).toEqual(['/api/items/5/archive']));
+    expect(location.hash).toBe('#/items');
+  });
+
+  it('labels gifts in the archive by how they left the wishlist', async () => {
+    apiMock.mockResolvedValue(saved({ status: 'archived' }));
+    mount(<Item id={5} />);
+    expect(await screen.findByText('Bought myself')).toBeTruthy();
   });
 });
 
@@ -114,6 +128,14 @@ describe('fetch from link', () => {
     await screen.findByText(/can’t be opened from here/);
     fireEvent.input(field('Title'), { target: { value: 'By hand' } });
     expect(field('Title').value).toBe('By hand');
+  });
+
+  it('says that the site refuses automated requests, not that it is unreachable', async () => {
+    apiMock.mockResolvedValue(preview({ title: null, description: null, imageUrl: null, priceMinor: null, currency: null, error: 'denied' }));
+    mount(<ItemForm />);
+    await press();
+    await screen.findByText(/doesn’t let apps read it/);
+    expect(screen.queryByText(/Couldn’t reach/)).toBeNull();
   });
 
   it('shows the same soft message when the request itself fails', async () => {
@@ -163,7 +185,7 @@ describe('saving', () => {
     const posts = calls('POST').map(([p, o]) => [p, (o as { json?: unknown }).json]);
     expect(posts[1]).toEqual([
       '/api/items',
-      { title: 'Keychron Q1', description: 'Aluminium', url: 'https://shop.example/kbd', priceMinor: 18900, currency: 'USD', priority: 'want', note: '', groupFunding: false },
+      { title: 'Keychron Q1', description: 'Aluminium', category: '', url: 'https://shop.example/kbd', priceMinor: 18900, currency: 'USD', priority: 'want', note: '', groupFunding: false },
     ]);
     expect(posts[2]).toEqual(['/api/items/5/image-from-url', { url: 'https://shop.example/i.jpg' }]);
   });

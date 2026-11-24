@@ -11,7 +11,7 @@ export interface LinkPreview {
   siteName: string | null;
 }
 
-export type LinkPreviewResult = LinkPreview & { error?: 'blocked' | 'unreachable' | 'too_large' };
+export type LinkPreviewResult = LinkPreview & { error?: 'blocked' | 'unreachable' | 'too_large' | 'denied' };
 
 const EMPTY: LinkPreview = { title: null, description: null, imageUrl: null, priceMinor: null, currency: null, siteName: null };
 
@@ -123,6 +123,6 @@ export async function getLinkPreview(url: string, fetcher: SafeFetch = safeFetch
     return parseLinkPreview(decode(res.body, res.contentType), res.finalUrl);
   } catch (err) {
     const code = err instanceof SafeFetchError ? err.code : 'unreachable';
-    return { ...EMPTY, error: code === 'blocked' || code === 'too_large' ? code : 'unreachable' };
+    return { ...EMPTY, error: code === 'blocked' || code === 'too_large' || code === 'denied' ? code : 'unreachable' };
   }
 }

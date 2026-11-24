@@ -29,7 +29,7 @@ const guest = { id: 7, name: 'Guest', lang: 'en' as const, isOwner: false };
 const owner = { ...guest, id: 1, isOwner: true };
 const item = (over: Partial<ItemDto> = {}): ItemDto => ({
   id: 5, title: 'Keyboard', description: '', url: null, priceMinor: null, currency: null, imageUrl: null,
-  priority: 'want', note: '', status: 'published', groupFunding: false, claims: [], ...over,
+  category: '', priority: 'want', note: '', status: 'published', groupFunding: false, claims: [], ...over,
 });
 const mount = (ui: preact.ComponentChild, viewer = guest, config = baseConfig) =>
   render(<AppProvider viewer={viewer} config={config} rates={null} initialCurrency="RUB">{ui}</AppProvider>);

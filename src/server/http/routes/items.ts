@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { claimFull, claimsByItem, contribute, raisedFor, releaseClaim, releaseShares, withdrawContribution } from '../../domain/claims';
-import { ITEM_ORDER, createItem, deleteItem, getItem, publishItem, updateItem, type ItemInput } from '../../domain/items';
+import { ITEM_ORDER, createItem, deleteItem, getItem, publishItem, setItemStatus, updateItem, type ItemInput } from '../../domain/items';
 import { toItemDto } from '../../domain/views';
 import type { ClaimRow, ItemRow } from '../../domain/types';
 import { getOpenRound } from '../../domain/rounds';
@@ -34,12 +34,13 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
     url: httpUrl.nullable(),
     priceMinor: z.number().int().positive().nullable(),
     currency: currency.nullable(),
+    category: z.string().trim().max(100),
     priority: z.enum(['must', 'want', 'nice']),
     note: z.string().max(500),
     groupFunding: z.boolean(),
   };
   const status = z.enum(['draft', 'published']);
-  const createSchema = z.object({ ...fields, description: fields.description.optional(), url: fields.url.optional(), priceMinor: fields.priceMinor.optional(), currency: fields.currency.optional(), priority: fields.priority.optional(), note: fields.note.optional(), status: status.optional(), groupFunding: fields.groupFunding.optional() }).strict();
+  const createSchema = z.object({ ...fields, description: fields.description.optional(), url: fields.url.optional(), priceMinor: fields.priceMinor.optional(), currency: fields.currency.optional(), category: fields.category.optional(), priority: fields.priority.optional(), note: fields.note.optional(), status: status.optional(), groupFunding: fields.groupFunding.optional() }).strict();
   const patchSchema = z.object(fields).partial().strict();
 
   async function parseBody<T>(c: { req: { json(): Promise<unknown> } }, schema: z.ZodType<T>): Promise<T> {
@@ -64,9 +65,9 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
     return id;
   };
 
-  /** Items a viewer may see: guests only published ones; the owner also drafts. */
+  /** Guests only see published gifts; the owner may open an item from either active list or archive. */
   const visible = (item: ItemRow | null, isOwner: boolean): item is ItemRow =>
-    item !== null && (isOwner ? item.status === 'draft' || item.status === 'published' || item.status === 'received' : item.status === 'published');
+    item !== null && (isOwner || item.status === 'published');
 
   const dtoFor = (item: ItemRow, viewer: Viewer) => {
     const claims = viewer.isOwner ? [] : (claimsByItem(db, getOpenRound(db).id).get(item.id) ?? []);
@@ -75,8 +76,10 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
 
   r.get('/items', (c) => {
     const viewer = c.get('viewer');
-    const archive = viewer.isOwner && c.req.query('status') === 'received';
-    const statuses = archive ? "('received')" : viewer.isOwner ? "('draft', 'published')" : "('published')";
+    const requestedStatus = c.req.query('status');
+    const archive = viewer.isOwner && requestedStatus === 'archive';
+    const receivedOnly = viewer.isOwner && requestedStatus === 'received';
+    const statuses = archive ? "('received', 'archived')" : receivedOnly ? "('received')" : viewer.isOwner ? "('draft', 'published')" : "('published')";
     const rows = db.prepare(`SELECT * FROM items WHERE status IN ${statuses} ORDER BY ${ITEM_ORDER}`).all() as ItemRow[];
     const byItem = viewer.isOwner ? new Map<number, ClaimRow[]>() : claimsByItem(db, getOpenRound(db).id);
     return c.json(rows.map((row) => toItemDto(row, byItem.get(row.id) ?? [], viewer, config)));
@@ -133,6 +136,24 @@ export function itemsRoutes(deps: AppDeps): Hono<AppEnv> {
 
   r.post('/items/:id/publish', requireOwner, (c) => {
     const item = publishItem(db, parseId(c.req.param('id')), clock());
+    if (!item) throw new HttpError(404, 'not_found');
+    return c.json(toItemDto(item, [], c.get('viewer'), config));
+  });
+
+  r.post('/items/:id/received', requireOwner, (c) => {
+    const item = setItemStatus(db, parseId(c.req.param('id')), 'received', clock());
+    if (!item) throw new HttpError(404, 'not_found');
+    return c.json(toItemDto(item, [], c.get('viewer'), config));
+  });
+
+  r.post('/items/:id/archive', requireOwner, (c) => {
+    const item = setItemStatus(db, parseId(c.req.param('id')), 'archived', clock());
+    if (!item) throw new HttpError(404, 'not_found');
+    return c.json(toItemDto(item, [], c.get('viewer'), config));
+  });
+
+  r.post('/items/:id/restore', requireOwner, (c) => {
+    const item = setItemStatus(db, parseId(c.req.param('id')), 'published', clock());
     if (!item) throw new HttpError(404, 'not_found');
     return c.json(toItemDto(item, [], c.get('viewer'), config));
   });

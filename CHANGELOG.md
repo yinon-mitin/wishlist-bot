@@ -34,6 +34,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Reveal screen for the owner (givers per gift, Received checkboxes, confirmation, summary, countdown before the birthday) and group-funding UI (progress bar in the viewer's currency, contributors, chip in / take back, over-funding protection).
 - Language switch (RU/EN) remembered per viewer; browser end-to-end journeys (Playwright) on the production bundle: owner creates a gift from a link with its photo, reservations and race, group funding, language, deep links, round close with thanks, owner blindness in the DOM and on the wire.
 - English documentation in the style of Iris: README with banner and security model, install guide (BotFather, Tailscale Funnel, settings), architecture, operations, security policy, contributing, contributors and NOTICE; `make check` now validates links and anchors and scans tracked files for tokens, keys and personal paths.
+- Gift categories: a free-form category per gift (form field, `category` in the API), the list is grouped under category headings with "Other" for the rest.
+- Owner status actions on a gift: "Bought it myself" (archives it) and "Received" (both ask first), an Archive screen (`#/archive`, `GET /api/items?status=archive`) listing received and bought gifts, and "Back to the wishlist" to restore one (`POST /api/items/:id/received|archive|restore`).
+- `npm run import:ohmywishes -- <username> [--publish] [--dry-run]` copies a public ohmywishes.com wishlist into the database: lists become categories, prices and links (without the site's `utm_source`) are kept, photos are downloaded through the SSRF-safe fetcher. Gifts arrive as hidden drafts, and a second run skips what is already there.
+
+### Changed
+- Link preview tells a site that refuses automated requests (HTTP 401/403/429, e.g. Cloudflare-protected shops) from one that is down, and says so in the form instead of "couldn't reach that page".
+- Migration 4 adds `items.category` and turns old "Категория: X" descriptions into categories (first line only, at most 100 characters; the rest stays as the description).
+- Status actions only allow published → received/archived and received/archived → published; anything else answers 409 `invalid_status`.
+- The owner bar's "Received" link is now "Archive" in English too (it was already "Архив" in Russian).
+- `wishlist.md` (personal notes) is git-ignored.
 
 ### Fixed
 - The mini-app now opens the gift from a `startapp` link: Telegram launches with `#tgWebAppData=…` already in the URL hash, which the router mistook for "already somewhere".

@@ -30,7 +30,7 @@ const share = (name: string, amountMinor: number, mine = false) => ({ userId: mi
 const group = (claims: ItemDto['claims'] = [share('Anna', 5000)]): ItemDto => {
   const raised = (claims ?? []).reduce((s, c) => s + (c.amountMinor ?? 0), 0);
   return {
-    id: 5, title: 'Headphones', description: '', url: null, priceMinor: 18900, currency: 'USD', imageUrl: null, priority: 'want', note: '',
+    id: 5, title: 'Headphones', description: '', url: null, priceMinor: 18900, currency: 'USD', imageUrl: null, category: '', priority: 'want', note: '',
     status: 'published', groupFunding: true, claims, funding: { raisedMinor: raised, remainingMinor: 18900 - raised },
   };
 };
